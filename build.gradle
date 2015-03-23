@@ -236,7 +236,12 @@ project(':core') {
 
     zinc 'com.typesafe.zinc:zinc:0.3.1'
   }
-
+ configurations {
+      releaseJars 
+     }
+  dependencies {
+     releaseJars group: 'nl.techop.kafka', name: 'kafka-http-metrics-reporter', version:'cdh5-1.0.0-SNAPSHOT'
+     }
   configurations {
     // manually excludes some unnecessary dependencies
     compile.exclude module: 'javax'
@@ -266,6 +271,7 @@ project(':core') {
     from '../LICENSE'
     from '../NOTICE'
     from(configurations.runtime) { into("libs/") }
+    from(configurations.releaseJars) { into("libs/") }    
     from(configurations.archives.artifacts.files) { into("libs/") }
   }
 
