@@ -20,8 +20,6 @@ buildscript {
   apply from: file('gradle/buildscript.gradle'), to: buildscript
 }
 
-def slf4jlog4j='org.slf4j:slf4j-log4j12:1.7.6'
-
 allprojects {
   apply plugin: 'idea'
   apply plugin: 'java'
@@ -29,6 +27,7 @@ allprojects {
   parsepom.execute()
   apply from: "$rootDir/version.properties"
   apply from: "$rootDir/version.properties"
+
   repositories {
     mavenCentral()
     maven {
@@ -40,6 +39,8 @@ allprojects {
 ext {
     gradleVersion = "2.0"
 }
+
+def slf4jlog4j="org.slf4j:slf4j-log4j12:$slf4j_version"
 
 def isVerificationRequired(project) {
     project.gradle.startParameter.taskNames.any { it.contains("upload") }
@@ -315,7 +316,7 @@ project(':clients') {
   archivesBaseName = "kafka-clients"
 
   dependencies {
-    compile "org.slf4j:slf4j-api:1.7.6"
+    compile "org.slf4j:slf4j-api:$slf4j_version"
     compile 'org.xerial.snappy:snappy-java:1.1.1.6'
     compile 'net.jpountz.lz4:lz4:1.2.0'
 
