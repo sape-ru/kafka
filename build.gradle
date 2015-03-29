@@ -218,7 +218,6 @@ project(':core') {
     compile 'com.101tec:zkclient:0.3'
     compile 'com.yammer.metrics:metrics-core:2.2.0'
     compile 'net.sf.jopt-simple:jopt-simple:3.2'
-    compile 'nl.techop.kafka:kafka-http-metrics-reporter:cdh5-1.1.0-SNAPSHOT'
 
     testCompile 'junit:junit:4.8.1'
     testCompile 'org.easymock:easymock:3.0'
@@ -241,7 +240,7 @@ project(':core') {
       releaseJars 
      }
   dependencies {
-     releaseJars group: 'nl.techop.kafka', name: 'kafka-http-metrics-reporter', version:'cdh5-1.0.0-SNAPSHOT'
+     releaseJars group: 'nl.techop.kafka', name: 'kafka-http-metrics-reporter', version:'cdh5-1.1.0-SNAPSHOT'
      }
   configurations {
     // manually excludes some unnecessary dependencies
