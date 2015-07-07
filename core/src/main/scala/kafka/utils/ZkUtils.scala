@@ -46,6 +46,8 @@ object ZkUtils extends Logging {
   val ReassignPartitionsPath = "/admin/reassign_partitions"
   val DeleteTopicsPath = "/admin/delete_topics"
   val PreferredReplicaLeaderElectionPath = "/admin/preferred_replica_election"
+  val BrokerSequenceIdPath = "/brokers/seqid"
+  val IsrChangeNotificationPath = "/isr_change_notification"
 
   def getTopicPath(topic: String): String = {
     BrokerTopicsPath + "/" + topic
