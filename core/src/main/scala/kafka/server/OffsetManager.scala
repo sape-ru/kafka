@@ -92,6 +92,7 @@ class OffsetManager(val config: OffsetManagerConfig,
   private val followerTransitionLock = new Object
 
   private val loadingPartitions: mutable.Set[Int] = mutable.Set()
+  private val offsetsTopicPartitionCount = getOffsetsTopicPartitionCount
 
   private val shuttingDown = new AtomicBoolean(false)
 
@@ -166,7 +167,7 @@ class OffsetManager(val config: OffsetManagerConfig,
     props
   }
 
-  def partitionFor(group: String): Int = Utils.abs(group.hashCode) % config.offsetsTopicNumPartitions
+  def partitionFor(group: String): Int = Utils.abs(group.hashCode) % offsetsTopicPartitionCount
 
   /**
    * Fetch the current offset for the given group/topic/partition from the underlying offsets storage.
@@ -344,6 +345,18 @@ class OffsetManager(val config: OffsetManagerConfig,
     shuttingDown.set(true)
   }
 
+  /**
+   * Gets the partition count of the offsets topic from ZooKeeper.
+   * If the topic does not exist, the configured partition count is returned.
+   */
+  private def getOffsetsTopicPartitionCount = {
+    val topic = OffsetManager.OffsetsTopicName
+    val topicData = ZkUtils.getPartitionAssignmentForTopics(zkClient, Seq(topic))
+    if (topicData(topic).nonEmpty)
+      topicData(topic).size
+    else
+      config.offsetsTopicNumPartitions
+  }
 }
 
 object OffsetManager {
