@@ -16,7 +16,13 @@
  */
 package kafka.server
 
+import java.io.{File, IOException}
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+
+import com.yammer.metrics.core.Gauge
 import kafka.api._
+import kafka.cluster.{Partition, Replica}
 import kafka.common._
 import kafka.utils._
 import kafka.cluster.{Broker, Partition, Replica}
@@ -63,6 +69,7 @@ class ReplicaManager(val config: KafkaConfig,
   private var hwThreadInitialized = false
   this.logIdent = "[Replica Manager on Broker " + localBrokerId + "]: "
   val stateChangeLogger = KafkaController.stateChangeLogger
+  private val isrChangeSet: mutable.Set[TopicAndPartition] = new mutable.HashSet[TopicAndPartition]()
 
   var producerRequestPurgatory: ProducerRequestPurgatory = null
   var fetchRequestPurgatory: FetchRequestPurgatory = null
@@ -97,6 +104,21 @@ class ReplicaManager(val config: KafkaConfig,
   def startHighWaterMarksCheckPointThread() = {
     if(highWatermarkCheckPointThreadStarted.compareAndSet(false, true))
       scheduler.schedule("highwatermark-checkpoint", checkpointHighWatermarks, period = config.replicaHighWatermarkCheckpointIntervalMs, unit = TimeUnit.MILLISECONDS)
+  }
+
+  def recordIsrChange(topicAndPartition: TopicAndPartition) {
+    isrChangeSet synchronized {
+      isrChangeSet += topicAndPartition
+    }
+  }
+
+  def maybePropagateIsrChanges() {
+    isrChangeSet synchronized {
+      if (isrChangeSet.nonEmpty) {
+        ReplicationUtils.propagateIsrChanges(zkClient, isrChangeSet)
+        isrChangeSet.clear()
+      }
+    }
   }
 
   /**
@@ -136,6 +158,7 @@ class ReplicaManager(val config: KafkaConfig,
   def startup() {
     // start ISR expiration thread
     scheduler.schedule("isr-expiration", maybeShrinkIsr, period = config.replicaLagTimeMaxMs, unit = TimeUnit.MILLISECONDS)
+    scheduler.schedule("isr-change-propagation", maybePropagateIsrChanges, period = 5000, unit = TimeUnit.MILLISECONDS)
   }
 
   def stopReplica(topic: String, partitionId: Int, deletePartition: Boolean): Short  = {
