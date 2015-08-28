@@ -44,7 +44,8 @@ class KafkaServerStartable(val serverConfig: KafkaConfig) extends Logging {
     catch {
       case e: Throwable =>
         fatal("Fatal error during KafkaServerStable shutdown. Prepare to halt", e)
-        System.exit(1)
+        // Calling exit() can lead to deadlock as exit() can be called multiple times. Force exit.
+        Runtime.getRuntime.halt(1)
     }
   }
 
