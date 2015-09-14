@@ -273,7 +273,7 @@ public class Selector implements Selectable {
                     Socket socket = channel.socket();
                     if (socket != null)
                         remoteAddress = socket.getInetAddress();
-                    log.warn("Error in I/O with {}", remoteAddress , e);
+                    log.debug("Connection with {} disconnected", remoteAddress, e);
                     close(key);
                 }
             }
