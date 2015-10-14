@@ -23,11 +23,11 @@ fi
 base_dir=$(dirname $0)/..
 
 if [ -z "$SCALA_VERSION" ]; then
-	SCALA_VERSION=2.10.5
+	SCALA_VERSION=2.11.7
 fi
 
 if [ -z "$SCALA_BINARY_VERSION" ]; then
-	SCALA_BINARY_VERSION=2.10
+	SCALA_BINARY_VERSION=2.11
 fi
 
 # run ./gradlew copyDependantLibs to get all dependant jars in a local dir

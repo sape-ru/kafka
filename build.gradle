@@ -39,8 +39,17 @@ def jersey_version = '2.22.1'
 
 allprojects {
   apply plugin: 'idea'
+  apply plugin: 'java'
+  apply from: "$rootDir/pom.gradle"
+  parsepom.execute()
+  apply from: "$rootDir/version.properties"
+  apply from: "$rootDir/version.properties"
+
   repositories {
     mavenCentral()
+    maven {
+      url "http://maven.jenkins.cloudera.com:8081/artifactory/cloudera-mirrors"
+    }
   }
 }
 
@@ -60,26 +69,6 @@ ext {
 
 apply from: file('wrapper.gradle')
 apply from: file('scala.gradle')
-
-if (new File('.git').exists()) {
-  apply from: file('gradle/rat.gradle')
-  rat {
-    // Exclude everything under the directory that git should be ignoring via .gitignore or that isn't checked in. These
-    // restrict us only to files that are checked in or are staged.
-    def repo = Grgit.open(project.file('.'))
-    excludes = new ArrayList<String>(repo.clean(ignore: false, directories: true, dryRun: true))
-    // And some of the files that we have checked in should also be excluded from this check
-    excludes.addAll([
-        '**/.git/**',
-        '**/build/**',
-        'CONTRIBUTING.md',
-        'gradlew',
-        'gradlew.bat',
-        '**/README.md',
-        '.reviewboardrc'
-    ])
-  }
-}
 
 subprojects {
   apply plugin: 'java'
@@ -278,7 +267,14 @@ project(':core') {
     testRuntime "$slf4jlog4j"
     zinc 'com.typesafe.zinc:zinc:0.3.7'
   }
-
+ configurations {
+      releaseJars
+     }
+  dependencies {
+     releaseJars (group: 'nl.techop.kafka', name: 'kafka-http-metrics-reporter', version:'0.9.0-kafka-2.0.0-SNAPSHOT') {
+         exclude group: 'org.apache.zookeeper', module: 'zookeeper'
+       }
+     }
   configurations {
     // manually excludes some unnecessary dependencies
     compile.exclude module: 'javax'
@@ -338,6 +334,7 @@ project(':core') {
     from '../LICENSE'
     from '../NOTICE'
     from(configurations.runtime) { into("libs/") }
+    from(configurations.releaseJars) { into("libs/") }
     from(configurations.archives.artifacts.files) { into("libs/") }
     from(project.siteDocsTar) { into("site-docs/") }
     from(project(':tools').jar) { into("libs/") }
