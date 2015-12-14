@@ -22,6 +22,7 @@ import java.util.Properties
 import kafka.utils.Logging
 import org.apache.kafka.common.config.SslConfigs
 
+import scala.collection.JavaConversions._
 import scala.sys.process.Process
 
 object Kafka extends Logging {
@@ -36,13 +37,24 @@ object Kafka extends Logging {
   }
 
   def generateSslPasswordsOverrides(serverProps: Properties): Array[String] = {
-    SslPasswordParams.flatMap(key => {
-      val value = serverProps.getProperty(key + ".generator")
+    val generatedProps: Properties = generateSslPasswords(serverProps)
+    val props = propertiesAsScalaMap(generatedProps)
+
+    props.flatMap(k => {
+      Some(s"--override ${k._1}=${k._2}")
+    }).toArray
+  }
+
+  def generateSslPasswords(props: Properties): Properties = {
+    val generatedProps: Properties = new Properties()
+    SslPasswordParams.foreach(key => {
+      val generatorKey: String = key + ".generator"
+      val value = props.getProperty(generatorKey)
       if (value != null) {
         try {
-          val overrideString = Some(s"--override $key=${exec(value)}")
+          props.remove(generatorKey)
+          generatedProps.put(key, exec(value))
           debug(s"Generated password for $key")
-          overrideString
         } catch {
           case e: Exception =>
             error(s"Failed to generate password for $key.\n$e")
@@ -52,6 +64,7 @@ object Kafka extends Logging {
       else
         None
     })
+    generatedProps
   }
 
   def main(args: Array[String]): Unit = {
