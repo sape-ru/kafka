@@ -43,13 +43,12 @@ allprojects {
   apply from: "$rootDir/pom.gradle"
   parsepom.execute()
   apply from: "$rootDir/version.properties"
-  apply from: "$rootDir/version.properties"
 
   repositories {
     mavenCentral()
     maven {
       url "http://maven.jenkins.cloudera.com:8081/artifactory/cloudera-mirrors"
-  }
+  	}
   }
 }
 
@@ -538,7 +537,7 @@ project(':tools') {
         from (configurations.runtime) {
             exclude('kafka-clients*')
         }
-        into "$buildDir/dependant-libs-${scalaVersion}"
+        into "$buildDir/dependant-libs-${resolvedScalaVersion}"
     }
 
     jar {
