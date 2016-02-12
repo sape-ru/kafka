@@ -384,6 +384,10 @@ project(':core') {
   }
 
   dependencies {
+    releaseJars (libs.sentryKafkaModel)
+    releaseJars (libs.sentryKafkaPolicy)
+    releaseJars (libs.sentryKafkaBinding)
+    releaseJars (libs.sentryProviderDb)
     releaseJars (libs.httpMetricsReporter) {
       exclude group: 'org.apache.zookeeper', module: 'zookeeper'
     }

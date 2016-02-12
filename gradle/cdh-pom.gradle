@@ -19,6 +19,9 @@ configurations.cdhPom.resolve().each { file ->
     def zookeeperVersion = parser.properties."cdh.zookeeper.version"
     logger.debug("Setting zookeeper version to $zookeeperVersion")
 
+    def sentryVersion = parser.properties."cdh.sentry.version"
+    logger.debug("Setting sentry version to $sentryVersion")
+
     def slf4jVersion = parser.properties."cdh.slf4j.version"
     logger.debug("Setting slf4j version to $slf4jVersion")
 
@@ -30,6 +33,10 @@ configurations.cdhPom.resolve().each { file ->
           force "org.apache.zookeeper:zookeeper:$zookeeperVersion"
           force "org.slf4j:slf4j-api:$slf4jVersion"
           force "org.slf4j:slf4j-log4j12:$slf4jVersion"
+          force "org.apache.sentry:sentry-core-model-kafka:$sentryVersion"
+          force "org.apache.sentry:sentry-policy-kafka:$sentryVersion"
+          force "org.apache.sentry:sentry-binding-kafka:$sentryVersion"
+          force "org.apache.sentry:sentry-provider-db:$sentryVersion"
         }
       }
     }
