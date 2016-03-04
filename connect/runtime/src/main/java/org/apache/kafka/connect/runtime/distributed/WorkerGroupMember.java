@@ -167,6 +167,10 @@ public class WorkerGroupMember {
         coordinator.requestRejoin();
     }
 
+    public void maybeLeaveGroup() {
+        coordinator.maybeLeaveGroup();
+    }
+
     private void stop(boolean swallowException) {
         log.trace("Stopping the Connect group member.");
         AtomicReference<Throwable> firstException = new AtomicReference<Throwable>();
