@@ -27,11 +27,11 @@ set BASE_DIR=%CD%
 popd
 
 IF ["%SCALA_VERSION%"] EQU [""] (
-  set SCALA_VERSION=2.10.6
+  set SCALA_VERSION=2.11.7
 )
 
 IF ["%SCALA_BINARY_VERSION%"] EQU [""] (
-  set SCALA_BINARY_VERSION=2.10
+  set SCALA_BINARY_VERSION=2.11
 )
 
 rem Classpath addition for kafka-core dependencies
