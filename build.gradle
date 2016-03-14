@@ -37,6 +37,9 @@ allprojects {
 
   repositories {
     mavenCentral()
+    maven {
+      url "http://maven.jenkins.cloudera.com:8081/artifactory/cloudera-mirrors"
+    }
   }
 
   apply plugin: 'com.github.ben-manes.versions'
@@ -94,32 +97,12 @@ ext {
 apply from: "$rootDir/gradle/dependencies.gradle"
 apply from: file('wrapper.gradle')
 
-if (new File('.git').exists()) {
-  apply from: file('gradle/rat.gradle')
-  rat {
-    // Exclude everything under the directory that git should be ignoring via .gitignore or that isn't checked in. These
-    // restrict us only to files that are checked in or are staged.
-    def repo = Grgit.open(project.file('.'))
-    excludes = new ArrayList<String>(repo.clean(ignore: false, directories: true, dryRun: true))
-    // And some of the files that we have checked in should also be excluded from this check
-    excludes.addAll([
-        '**/.git/**',
-        '**/build/**',
-        'CONTRIBUTING.md',
-        'gradlew',
-        'gradlew.bat',
-        '**/README.md',
-        '**/id_rsa',
-        '**/id_rsa.pub'
-    ])
-  }
-}
-
 subprojects {
   apply plugin: 'java'
   apply plugin: 'maven'
   apply plugin: 'signing'
   apply plugin: 'checkstyle'
+  apply from: "$rootDir/gradle/cdh-pom.gradle"
 
   sourceCompatibility = 1.7
 
@@ -127,6 +110,14 @@ subprojects {
     options.encoding = 'UTF-8'
     // Add unchecked once we drop support for Java 7 as @SuppressWarnings("unchecked") is too buggy in Java 7
     options.compilerArgs << "-Xlint:deprecation"
+  }
+
+  if (JavaVersion.current().isJava8Compatible()) {
+    tasks.withType(Javadoc) {
+        // disable the crazy super-strict doclint tool in Java 8
+        //noinspection SpellCheckingInspection
+        options.addStringOption('Xdoclint:none', '-quiet')
+      }
   }
 
   uploadArchives {
@@ -432,6 +423,32 @@ project(':core') {
   checkScoverage.shouldRunAfter('test')
 
   configurations {
+    releaseJars { extendsFrom runtime }
+  }
+
+  dependencies {
+    releaseJars (libs.sentryKafkaModel)
+    releaseJars (libs.sentryKafkaPolicy)
+    releaseJars (libs.sentryKafkaBinding) {
+      // Temporarily exclude dependencies (see CDH-40277 & SENTRY-1255)
+      exclude group: 'ant-contrib'
+      exclude group: 'com.codahale.metrics'
+      exclude group: 'com.jolbox'
+      exclude group: 'org.apache.curator'
+      exclude group: 'org.apache.derby'
+      exclude group: 'org.apache.hive'
+      exclude group: 'org.apache.shiro'
+      exclude group: 'org.eclipse.jetty'
+      exclude group: 'org.datanucleus'
+      exclude group: 'org.apache.sentry', module: 'sentry-policy-search'
+      exclude group: 'org.apache.sentry', module: 'sentry-core-model-search'
+    }
+    releaseJars (libs.httpMetricsReporter) {
+      exclude group: 'org.apache.zookeeper', module: 'zookeeper'
+    }
+  }
+
+  configurations {
     // manually excludes some unnecessary dependencies
     compile.exclude module: 'javax'
     compile.exclude module: 'jline'
@@ -524,6 +541,7 @@ project(':core') {
     from "$rootDir/LICENSE"
     from "$rootDir/NOTICE"
     from(configurations.runtime) { into("libs/") }
+    from(configurations.releaseJars) { into("libs/") }
     from(configurations.archives.artifacts.files) { into("libs/") }
     from(project.siteDocsTar) { into("site-docs/") }
     from(project(':tools').jar) { into("libs/") }

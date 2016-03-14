@@ -23,6 +23,7 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.regex.Pattern
 import java.util.{Collections, Properties}
 
+import com.cloudera.kafka.wrap.Kafka._
 import com.yammer.metrics.core.Gauge
 import joptsimple.OptionParser
 import kafka.consumer.{BaseConsumer, BaseConsumerRecord, Blacklist, ConsumerIterator, ConsumerThreadId, ConsumerTimeoutException, TopicFilter, Whitelist, ZookeeperConsumerConnector, ConsumerConfig => OldConsumerConfig}
@@ -233,6 +234,10 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
       // Always set producer key and value serializer to ByteArraySerializer.
       producerProps.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer")
       producerProps.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer")
+
+      // Generate password from executable
+      producerProps.putAll(generateSslPasswords(producerProps))
+
       producer = new MirrorMakerProducer(producerProps)
 
       // Create consumers
@@ -352,6 +357,10 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
     // Hardcode the deserializer to ByteArrayDeserializer
     consumerConfigProps.setProperty("key.deserializer", classOf[ByteArrayDeserializer].getName)
     consumerConfigProps.setProperty("value.deserializer", classOf[ByteArrayDeserializer].getName)
+
+    // Generate password from executable
+    consumerConfigProps.putAll(generateSslPasswords(consumerConfigProps))
+
     // The default client id is group id, we manually set client id to groupId-index to avoid metric collision
     val groupIdString = consumerConfigProps.getProperty("group.id")
     val consumers = (0 until numStreams) map { i =>
