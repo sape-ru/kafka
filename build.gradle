@@ -323,6 +323,7 @@ project(':core') {
       exclude('kafka-clients*')
     }
     into "$buildDir/dependant-libs-${versions.scala}"
+    duplicatesStrategy 'exclude'
   }
 
   tasks.create(name: "genProducerConfigDocs", dependsOn:jar, type: JavaExec) {
@@ -348,6 +349,7 @@ project(':core') {
     compression = Compression.GZIP
     from project.file("../docs")
     into 'site-docs'
+    duplicatesStrategy 'exclude'
   }
 
   tasks.create(name: "releaseTarGz", dependsOn: configurations.archives.artifacts, type: Tar) {
@@ -371,6 +373,7 @@ project(':core') {
     from(project(':connect:json').configurations.runtime) { into("libs/") }
     from(project(':connect:file').jar) { into("libs/") }
     from(project(':connect:file').configurations.runtime) { into("libs/") }
+	  duplicatesStrategy 'exclude'
   }
 
   jar {
@@ -388,6 +391,7 @@ project(':core') {
       include('*.jar')
     }
     into "$buildDir/dependant-testlibs"
+    duplicatesStrategy 'exclude'
   }
 
   checkstyle {
@@ -429,7 +433,7 @@ project(':clients') {
       if (headRef.contains('ref: ')) {
         headRef = headRef.replaceAll('ref: ', '').trim()
         if (file("../.git/$headRef").exists()) {
-          commitId = file("../.git/$headRef").text.trim().take(takeFromHash)
+        commitId = file("../.git/$headRef").text.trim().take(takeFromHash)
         }
       } else {
         commitId = headRef.trim().take(takeFromHash)
@@ -500,6 +504,7 @@ project(':tools') {
             exclude('kafka-clients*')
         }
         into "$buildDir/dependant-libs-${versions.scala}"
+        duplicatesStrategy 'exclude'
     }
 
     jar {
@@ -548,6 +553,7 @@ project(':connect:api') {
       exclude('connect-*')
     }
     into "$buildDir/dependant-libs"
+    duplicatesStrategy 'exclude'
   }
 
   jar {
@@ -584,6 +590,7 @@ project(':connect:json') {
       exclude('connect-*')
     }
     into "$buildDir/dependant-libs"
+    duplicatesStrategy 'exclude'
   }
 
   jar {
@@ -629,6 +636,7 @@ project(':connect:runtime') {
       exclude('connect-*')
     }
     into "$buildDir/dependant-libs"
+    duplicatesStrategy 'exclude'
   }
 
   jar {
@@ -670,6 +678,7 @@ project(':connect:file') {
       exclude('connect-*')
     }
     into "$buildDir/dependant-libs"
+    duplicatesStrategy 'exclude'
   }
 
   jar {
