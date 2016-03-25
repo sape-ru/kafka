@@ -220,7 +220,7 @@ public class ConsumerConfig extends AbstractConfig {
                                         CommonClientConfigs.SEND_BUFFER_DOC)
                                 .define(RECEIVE_BUFFER_CONFIG,
                                         Type.INT,
-                                        32 * 1024,
+                                        64 * 1024,
                                         atLeast(0),
                                         Importance.MEDIUM,
                                         CommonClientConfigs.RECEIVE_BUFFER_DOC)
