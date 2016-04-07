@@ -415,9 +415,6 @@ public final class ConsumerCoordinator extends AbstractCoordinator {
                     requestInFlight = false;
                     if (exception == null) {
                         reschedule(now + interval);
-                    } else if (exception instanceof SendFailedException) {
-                        log.debug("Failed to send automatic offset commit for group {}", groupId);
-                        reschedule(now);
                     } else {
                         log.warn("Auto offset commit failed for group {}: {}", groupId, exception.getMessage());
                         reschedule(now + interval);
