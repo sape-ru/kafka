@@ -3,9 +3,9 @@
  * file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file
  * to You under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the
  * License. You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
  * an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
@@ -250,7 +250,7 @@ public class RecordAccumulatorTest {
         assertEquals("Node1 should only have one batch drained.", 1, batches.get(0).size());
         assertEquals("Node1 should only have one batch for partition 0.", tp1, batches.get(0).get(0).topicPartition);
     }
-    
+
     @Test
     public void testFlush() throws Exception {
         long lingerMs = Long.MAX_VALUE;
@@ -259,16 +259,16 @@ public class RecordAccumulatorTest {
             accum.append(new TopicPartition(topic, i % 3), key, value, null, maxBlockTimeMs);
         RecordAccumulator.ReadyCheckResult result = accum.ready(cluster, time.milliseconds());
         assertEquals("No nodes should be ready.", 0, result.readyNodes.size());
-        
+
         accum.beginFlush();
         result = accum.ready(cluster, time.milliseconds());
-        
+
         // drain and deallocate all batches
         Map<Integer, List<RecordBatch>> results = accum.drain(cluster, result.readyNodes, Integer.MAX_VALUE, time.milliseconds());
         for (List<RecordBatch> batches: results.values())
             for (RecordBatch batch: batches)
                 accum.deallocate(batch);
-        
+
         // should be complete with no unsent records.
         accum.awaitFlushCompletion();
         assertFalse(accum.hasUnsent());
@@ -314,7 +314,7 @@ public class RecordAccumulatorTest {
         assertEquals("Our partition's leader should be ready", Collections.singleton(node1), readyNodes);
         Cluster cluster = new Cluster(new ArrayList<Node>(), new ArrayList<PartitionInfo>(), Collections.<String>emptySet());
         now = time.milliseconds();
-        List<RecordBatch> expiredBatches = accum.abortExpiredBatches(60, cluster, now);
+        List<RecordBatch> expiredBatches = accum.abortExpiredBatches(60, now);
         assertEquals(1, expiredBatches.size());
     }
 }
