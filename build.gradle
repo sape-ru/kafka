@@ -380,7 +380,7 @@ project(':core') {
   checkScoverage.shouldRunAfter('test')
 
   configurations {
-    releaseJars
+    releaseJars { extendsFrom runtime }
   }
 
   dependencies {
