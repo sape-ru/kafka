@@ -41,6 +41,15 @@ allprojects {
       url "http://maven.jenkins.cloudera.com:8081/artifactory/cloudera-mirrors"
     }
   }
+
+  if (JavaVersion.current().isJava8Compatible()) {
+    tasks.withType(Javadoc) {
+      // disable the crazy super-strict doclint tool in Java 8
+      // noinspection SpellCheckingInspection
+      options.addStringOption('Xdoclint:none', '-quiet')
+    }
+  }
+
 }
 
 ext {
@@ -79,14 +88,6 @@ subprojects {
     options.encoding = 'UTF-8'
     // Add unchecked once we drop support for Java 7 as @SuppressWarnings("unchecked") is too buggy in Java 7
     options.compilerArgs << "-Xlint:deprecation"
-  }
-
-  if (JavaVersion.current().isJava8Compatible()) {
-    tasks.withType(Javadoc) {
-        // disable the crazy super-strict doclint tool in Java 8
-        //noinspection SpellCheckingInspection
-        options.addStringOption('Xdoclint:none', '-quiet')
-      }
   }
 
   uploadArchives {
@@ -546,6 +547,10 @@ project(':examples') {
     compile project(':core')
   }
 
+  javadoc {
+    enabled = false
+  }
+
   checkstyle {
     configProperties = [importControlFile: "$rootDir/checkstyle/import-control-core.xml"]
   }
@@ -634,7 +639,7 @@ project(':tools') {
   }
 
   javadoc {
-    include "**/org/apache/kafka/tools/*"
+    enabled = false
   }
 
   tasks.create(name: "copyDependantLibs", type: Copy) {
@@ -743,8 +748,9 @@ project(':log4j-appender') {
   }
 
   javadoc {
-    include "**/org/apache/kafka/log4jappender/*"
+    enabled = false
   }
+
 }
 
 project(':connect:api') {
@@ -760,6 +766,7 @@ project(':connect:api') {
   }
 
   javadoc {
+    include "**/org/apache/kafka/connect/**" // needed for the `javadocAll` task
     options.links "http://docs.oracle.com/javase/7/docs/api/"
   }
 
@@ -908,4 +915,13 @@ project(':connect:file') {
   jar {
     dependsOn copyDependantLibs
   }
+}
+
+task aggregatedJavadoc(type: Javadoc) {
+  def projectsWithJavadoc = subprojects.findAll { it.javadoc.enabled }
+  source = projectsWithJavadoc.collect { it.sourceSets.main.allJava }
+  classpath = files(projectsWithJavadoc.collect { it.sourceSets.main.compileClasspath })
+  includes = projectsWithJavadoc.collectMany { it.javadoc.getIncludes() }
+  excludes = projectsWithJavadoc.collectMany { it.javadoc.getExcludes() }
+  options.links "http://docs.oracle.com/javase/7/docs/api/"
 }
