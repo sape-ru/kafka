@@ -41,8 +41,8 @@ versions += [
   scalaTest: "2.2.5",
   scalaParserCombinators: "1.0.4",
   slf4j: "1.7.6",
-  snappy: "1.1.2",
   zkclient: "0.7",
+  snappy: "1.1.2.6",
   zookeeper: "3.4.6",
 ]
 
