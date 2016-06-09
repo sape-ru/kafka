@@ -25,6 +25,6 @@ import co.cask.tephra.util.HBaseVersion;
 public class HBase11ConfigurationProviderTest extends AbstractConfigurationProviderTest {
   @Override
   protected HBaseVersion.Version getExpectedVersion() {
-    return HBaseVersion.Version.HBASE_11;
+    return HBaseVersion.Version.HBASE_12_CDH;
   }
 }
