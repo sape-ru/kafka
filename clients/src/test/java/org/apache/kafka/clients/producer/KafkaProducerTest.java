@@ -17,6 +17,7 @@
 package org.apache.kafka.clients.producer;
 
 import org.apache.kafka.common.KafkaException;
+import org.apache.kafka.common.network.Selectable;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.test.MockMetricsReporter;
@@ -69,5 +70,32 @@ public class KafkaProducerTest {
         producer.close();
         Assert.assertEquals(oldInitCount + 2, MockSerializer.INIT_COUNT.get());
         Assert.assertEquals(oldCloseCount + 2, MockSerializer.CLOSE_COUNT.get());
+    }
+
+    @Test
+    public void testOsDefaultSocketBufferSizes() throws Exception {
+        Map<String, Object> config = new HashMap<>();
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9999");
+        config.put(ProducerConfig.SEND_BUFFER_CONFIG, Selectable.USE_DEFAULT_BUFFER_SIZE);
+        config.put(ProducerConfig.RECEIVE_BUFFER_CONFIG, Selectable.USE_DEFAULT_BUFFER_SIZE);
+        KafkaProducer<byte[], byte[]> producer = new KafkaProducer<>(
+                config, new ByteArraySerializer(), new ByteArraySerializer());
+        producer.close();
+    }
+
+    @Test(expected = KafkaException.class)
+    public void testInvalidSocketSendBufferSize() throws Exception {
+        Map<String, Object> config = new HashMap<>();
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9999");
+        config.put(ProducerConfig.SEND_BUFFER_CONFIG, -2);
+        new KafkaProducer<>(config, new ByteArraySerializer(), new ByteArraySerializer());
+    }
+
+    @Test(expected = KafkaException.class)
+    public void testInvalidSocketReceiveBufferSize() throws Exception {
+        Map<String, Object> config = new HashMap<>();
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9999");
+        config.put(ProducerConfig.RECEIVE_BUFFER_CONFIG, -2);
+        new KafkaProducer<>(config, new ByteArraySerializer(), new ByteArraySerializer());
     }
 }
