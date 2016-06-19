@@ -538,7 +538,8 @@ class ReplicaManager(val config: KafkaConfig,
           val initialLogEndOffset = localReplica.logEndOffset
           val logReadInfo = localReplica.log match {
             case Some(log) =>
-              log.read(offset, fetchSize, maxOffsetOpt)
+              val adjustedFetchSize = if (Topic.InternalTopics.contains(topic) && !readOnlyCommitted) Math.max(fetchSize, log.config.maxMessageSize) else fetchSize
+              log.read(offset, adjustedFetchSize, maxOffsetOpt)
             case None =>
               error("Leader for partition [%s,%d] does not have a local log".format(topic, partition))
               FetchDataInfo(LogOffsetMetadata.UnknownOffsetMetadata, MessageSet.Empty)
