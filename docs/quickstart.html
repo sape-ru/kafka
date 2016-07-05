@@ -365,6 +365,11 @@ summit  1
 Here, the first column is the Kafka message key, and the second column is the message value, both in in <code>java.lang.String</code> format.
 Note that the output is actually a continuous stream of updates, where each data record (i.e. each line in the original output above) is
 an updated count of a single word, aka record key such as "kafka". For multiple records with the same key, each later record is an update of the previous one.
+
+<p>
+Now you can write more input messages to the <b>streams-file-input</b> topic and observe additional messages added 
+to <b>streams-wordcount-output</b> topic, reflecting updated word counts (e.g., using the console producer and the 
+console consumer, as described above).
 </p>
 
 <p>
