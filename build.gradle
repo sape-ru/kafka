@@ -386,8 +386,20 @@ project(':core') {
   dependencies {
     releaseJars (libs.sentryKafkaModel)
     releaseJars (libs.sentryKafkaPolicy)
-    releaseJars (libs.sentryKafkaBinding)
-    releaseJars (libs.sentryProviderDb)
+    releaseJars (libs.sentryKafkaBinding) {
+      // Temporarily exclude dependencies (see CDH-40277 & SENTRY-1255)
+      exclude group: 'ant-contrib'
+      exclude group: 'com.codahale.metrics'
+      exclude group: 'com.jolbox'
+      exclude group: 'org.apache.curator'
+      exclude group: 'org.apache.derby'
+      exclude group: 'org.apache.hive'
+      exclude group: 'org.apache.shiro'
+      exclude group: 'org.eclipse.jetty'
+      exclude group: 'org.datanucleus'
+      exclude group: 'org.apache.sentry', module: 'sentry-policy-search'
+      exclude group: 'org.apache.sentry', module: 'sentry-core-model-search'
+    }
     releaseJars (libs.httpMetricsReporter) {
       exclude group: 'org.apache.zookeeper', module: 'zookeeper'
     }
