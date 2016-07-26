@@ -36,7 +36,6 @@ configurations.cdhPom.resolve().each { file ->
           force "org.apache.sentry:sentry-core-model-kafka:$sentryVersion"
           force "org.apache.sentry:sentry-policy-kafka:$sentryVersion"
           force "org.apache.sentry:sentry-binding-kafka:$sentryVersion"
-          force "org.apache.sentry:sentry-provider-db:$sentryVersion"
         }
       }
     }
