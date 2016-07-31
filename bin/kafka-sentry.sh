@@ -15,7 +15,8 @@
 # limitations under the License.
 
 CONFIG_OPTION="--config"
-SENTRY_CONF_DIR=${SENTRY_CONF_DIR:-/etc/sentry/conf}
+KAFKA_CONF_DIR=${KAFKA_CONF_DIR:-/etc/kafka/conf}
+SENTRY_CONF_DIR=${SENTRY_CONF_DIR:-$KAFKA_CONF_DIR/sentry-conf}
 SENTRY_SITE_XML=${SENTRY_SITE_XML:-sentry-site.xml}
 SENTRY_CONF_FILE=$SENTRY_CONF_DIR/$SENTRY_SITE_XML
 USAGE_STRING="USAGE: kafka-sentry [$CONFIG_OPTION <path_to_sentry_conf_dir>] <sentry-cli-arguments>"
