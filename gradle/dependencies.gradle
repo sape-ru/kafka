@@ -46,7 +46,7 @@ versions += [
   snappy: "1.1.2.6",
   zkclient: "0.8",
   zookeeper: "3.4.6",
-  sentry: "1.5.1-cdh5.9.0-SNAPSHOT"
+  sentry: "1.5.1-cdh5.9.0"
 ]
 
 // Add Scala version
