@@ -100,9 +100,18 @@ public class SslSelectorTest extends SelectorTest {
             }
             selector.send(createSend(node, node + "-" + 0));
             requests++;
+            final long startTime = System.currentTimeMillis();
+            final long expiryTime = startTime + 3000;
+            boolean extra = false;
 
             // loop until we complete all requests
-            while (responses < reqs) {
+            while (responses < reqs && System.currentTimeMillis() < expiryTime) {
+                // this extra send is a workaround to make this test work on slow machines
+                // more details on KAFKA-3148
+                if ((System.currentTimeMillis() - startTime) > 1000 && !extra) {
+                    selector.send(createSend(node, node + "-" + requests + "-EXTRA"));
+                    extra = true;
+                }
                 selector.poll(0L);
                 if (responses >= 100 && renegotiates == 0) {
                     renegotiates++;
@@ -125,6 +134,7 @@ public class SslSelectorTest extends SelectorTest {
                     selector.send(createSend(node, node + "-" + requests));
                 }
             }
+            assertTrue("Responses count must be more than number of requests sent.", responses >= reqs);
         } finally {
             selector.close();
         }
