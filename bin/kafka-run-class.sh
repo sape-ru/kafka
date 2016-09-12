@@ -41,7 +41,7 @@ should_include_file() {
 base_dir=$(dirname $0)/..
 
 if [ -z "$SCALA_VERSION" ]; then
-	SCALA_VERSION=2.11.7
+	SCALA_VERSION=2.11.8
 fi
 
 if [ -z "$SCALA_BINARY_VERSION" ]; then
