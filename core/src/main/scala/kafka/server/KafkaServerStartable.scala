@@ -32,6 +32,8 @@ object KafkaServerStartable {
 class KafkaServerStartable(val serverConfig: KafkaConfig) extends Logging {
   private val server = new KafkaServer(serverConfig)
 
+  def this(serverConfig: KafkaConfig) = this(serverConfig, Seq.empty)
+
   def startup() {
     try {
       server.startup()
