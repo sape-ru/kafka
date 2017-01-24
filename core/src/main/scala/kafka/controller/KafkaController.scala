@@ -1176,7 +1176,9 @@ class KafkaController(val config : KafkaConfig, zkUtils: ZkUtils, val brokerStat
           controllerElector.elect
         }
       } else {
-        //maybe create by current session or the previous zk session's ephemeral node is not deleted
+        // This can happen when there are multiple consecutive session expiration and handleNewSession() are called multiple
+        // times. The first call may already register the controller path using the newest ZK session. Therefore, the
+        // controller path will exist in subsequent calls to handleNewSession().
         info("ZK expired, but the current controller id %d is the same as this broker id, skip re-elect".format(config.brokerId))
       }
     }
