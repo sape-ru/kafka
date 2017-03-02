@@ -63,7 +63,7 @@ public class DefaultPartitionGrouper implements PartitionGrouper {
 
                 for (String topic : topicGroup) {
                     List<PartitionInfo> partitions = metadata.partitionsForTopic(topic);
-                    if (partitions != null && partitionId < partitions.size()) {
+                    if (partitionId < partitions.size()) {
                         group.add(new TopicPartition(topic, partitionId));
                     }
                 }
@@ -82,7 +82,7 @@ public class DefaultPartitionGrouper implements PartitionGrouper {
         for (String topic : topics) {
             List<PartitionInfo> partitions = metadata.partitionsForTopic(topic);
 
-            if (partitions == null) {
+            if (partitions.isEmpty()) {
                 log.info("Skipping assigning topic {} to tasks since its metadata is not available yet", topic);
                 return StreamPartitionAssignor.NOT_AVAILABLE;
             } else {
