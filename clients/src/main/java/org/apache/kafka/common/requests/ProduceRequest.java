@@ -14,12 +14,12 @@
 package org.apache.kafka.common.requests;
 
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.errors.UnsupportedVersionException;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.ProtoUtils;
 import org.apache.kafka.common.protocol.types.Struct;
 import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.CollectionUtils;
 import org.apache.kafka.common.utils.Utils;
 
@@ -58,10 +58,17 @@ public class ProduceRequest extends AbstractRequest {
         @Override
         public ProduceRequest build() {
             short version = version();
+            // Version 0 and 1 only support message format 0
             if (version < 2) {
-                throw new UnsupportedVersionException("ProduceRequest versions older than 2 are not supported.");
+                Map<TopicPartition, MemoryRecords> downConvertedPartitionRecords = new HashMap<>();
+                for (Map.Entry<TopicPartition, MemoryRecords> entry: partitionRecords.entrySet()) {
+                    MemoryRecords downConvertedRecords = (MemoryRecords) entry.getValue().toMessageFormat(Record.MAGIC_VALUE_V0, null);
+                    downConvertedPartitionRecords.put(entry.getKey(), downConvertedRecords);
+                }
+                return new ProduceRequest(version, acks, timeout, downConvertedPartitionRecords);
+            } else {
+                return new ProduceRequest(version, acks, timeout, partitionRecords);
             }
-            return new ProduceRequest(version, acks, timeout, partitionRecords);
         }
 
         @Override

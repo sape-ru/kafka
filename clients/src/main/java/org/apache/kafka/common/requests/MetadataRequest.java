@@ -13,7 +13,6 @@
 package org.apache.kafka.common.requests;
 
 import org.apache.kafka.common.Node;
-import org.apache.kafka.common.errors.UnsupportedVersionException;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.ProtoUtils;
@@ -53,10 +52,7 @@ public class MetadataRequest extends AbstractRequest {
         @Override
         public MetadataRequest build() {
             short version = version();
-            if (version < 1) {
-                throw new UnsupportedVersionException("MetadataRequest " +
-                        "versions older than 1 are not supported.");
-            }
+            // MetadataRequest version 0 and 1 are the same
             return new MetadataRequest(this.topics, version);
         }
 

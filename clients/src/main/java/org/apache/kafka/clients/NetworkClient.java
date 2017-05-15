@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -95,6 +96,26 @@ public class NetworkClient implements KafkaClient {
      * True if we should send an ApiVersionRequest when first connecting to a broker.
      */
     private final boolean discoverBrokerVersions;
+
+    // The versions that should be used by default in the case the broker
+    // doesn't support an ApiVersionsRequest and disconnects.
+    // This allows clients to support brokers as old as 0.9.0.0.
+    private final NodeApiVersions legacyApiVersions = new NodeApiVersions(
+            Arrays.asList(
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.PRODUCE.id, (short) 0, (short) 1),
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.FETCH.id, (short) 0, (short) 1),
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.LIST_OFFSETS.id, (short) 0, (short) 0),
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.METADATA.id, (short) 0, (short) 0),
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.OFFSET_COMMIT.id, (short) 0, (short) 2),
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.OFFSET_FETCH.id, (short) 0, (short) 1),
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.GROUP_COORDINATOR.id, (short) 0, (short) 0),
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.JOIN_GROUP.id, (short) 0, (short) 0),
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.HEARTBEAT.id, (short) 0, (short) 0),
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.LEAVE_GROUP.id, (short) 0, (short) 0),
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.SYNC_GROUP.id, (short) 0, (short) 0),
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.DESCRIBE_GROUPS.id, (short) 0, (short) 0),
+                    new ApiVersionsResponse.ApiVersion(ApiKeys.LIST_GROUPS.id, (short) 0, (short) 0)
+            ));
 
     private final Map<String, NodeApiVersions> nodeApiVersions = new HashMap<>();
 
@@ -472,7 +493,11 @@ public class NetworkClient implements KafkaClient {
             log.trace("Cancelled request {} due to node {} being disconnected", request, nodeId);
             if (request.isInternalRequest && request.header.apiKey() == ApiKeys.METADATA.id)
                 metadataUpdater.handleDisconnection(request.destination);
-            else
+            else if (request.isInternalRequest && request.header.apiKey() == ApiKeys.API_VERSIONS.id) {
+                log.info("API versions request failed via disconnect. Defaulting legacy API versions");
+                nodeApiVersions.put(nodeId, legacyApiVersions);
+                responses.add(request.disconnected(now));
+            } else
                 responses.add(request.disconnected(now));
         }
     }
@@ -585,9 +610,15 @@ public class NetworkClient implements KafkaClient {
             // Therefore, it is still necessary to check isChannelReady before attempting to send on this
             // connection.
             if (discoverBrokerVersions) {
-                this.connectionStates.checkingApiVersions(node);
-                nodesNeedingApiVersionsFetch.add(node);
-                log.debug("Completed connection to node {}.  Fetching API versions.", node);
+                // Don't re-check the versions if it was set to legacyApiVersions on a previous disconnect
+                if (nodeApiVersions.containsKey(node) && nodeApiVersions.get(node).equals(legacyApiVersions)) {
+                    log.debug("Completed connection to node {}. Using legacy API versions.", node);
+                    this.connectionStates.ready(node);
+                } else {
+                    this.connectionStates.checkingApiVersions(node);
+                    nodesNeedingApiVersionsFetch.add(node);
+                    log.debug("Completed connection to node {}.  Fetching API versions.", node);
+                }
             } else {
                 this.connectionStates.ready(node);
                 log.debug("Completed connection to node {}.  Ready.", node);

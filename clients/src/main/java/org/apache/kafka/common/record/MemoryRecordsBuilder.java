@@ -112,7 +112,7 @@ public class MemoryRecordsBuilder {
                                 long baseOffset,
                                 long logAppendTime,
                                 int writeLimit) {
-		    if (magic > Record.MAGIC_VALUE_V0 && timestampType == TimestampType.NO_TIMESTAMP_TYPE)
+        if (magic > Record.MAGIC_VALUE_V0 && timestampType == TimestampType.NO_TIMESTAMP_TYPE)
             throw new IllegalArgumentException("TimestampType must be set for magic >= 0");
 
         this.magic = magic;
