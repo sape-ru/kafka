@@ -93,7 +93,7 @@ public class ProduceResponse extends AbstractResponse {
      * Constructor from a {@link Struct}.
      */
     public ProduceResponse(Struct struct) {
-        responses = new HashMap<>();
+        Map<TopicPartition, PartitionResponse> responses = new HashMap<>();
         for (Object topicResponse : struct.getArray(RESPONSES_KEY_NAME)) {
             Struct topicRespStruct = (Struct) topicResponse;
             String topic = topicRespStruct.getString(TOPIC_KEY_NAME);
@@ -102,12 +102,19 @@ public class ProduceResponse extends AbstractResponse {
                 int partition = partRespStruct.getInt(PARTITION_KEY_NAME);
                 Errors error = Errors.forCode(partRespStruct.getShort(ERROR_CODE_KEY_NAME));
                 long offset = partRespStruct.getLong(BASE_OFFSET_KEY_NAME);
-                long logAppendTime = partRespStruct.getLong(LOG_APPEND_TIME_KEY_NAME);
+                long logAppendTime = RecordBatch.NO_TIMESTAMP;
+                if (partRespStruct.hasField(LOG_APPEND_TIME_KEY_NAME))
+                    logAppendTime = partRespStruct.getLong(LOG_APPEND_TIME_KEY_NAME);
                 TopicPartition tp = new TopicPartition(topic, partition);
                 responses.put(tp, new PartitionResponse(error, offset, logAppendTime));
             }
         }
-        this.throttleTime = struct.getInt(THROTTLE_TIME_KEY_NAME);
+        int throttleTime = DEFAULT_THROTTLE_TIME;
+        if (struct.hasField(THROTTLE_TIME_KEY_NAME))
+            throttleTime = struct.getInt(THROTTLE_TIME_KEY_NAME);
+
+        this.responses = responses;
+        this.throttleTime = throttleTime;
     }
 
     @Override

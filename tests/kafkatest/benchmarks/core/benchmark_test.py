@@ -22,7 +22,7 @@ from ducktape.tests.test import Test
 from kafkatest.services.kafka import KafkaService
 from kafkatest.services.performance import ProducerPerformanceService, EndToEndLatencyService, ConsumerPerformanceService, throughput, latency, compute_aggregate_throughput
 from kafkatest.services.zookeeper import ZookeeperService
-from kafkatest.version import DEV_BRANCH, KafkaVersion
+from kafkatest.version import DEV_BRANCH, LATEST_0_9, LATEST_0_10_0, LATEST_0_10_1, V_0_10_1_0, KafkaVersion
 
 TOPIC_REP_ONE = "topic-replication-factor-one"
 TOPIC_REP_THREE = "topic-replication-factor-three"
@@ -65,13 +65,17 @@ class Benchmark(Test):
         self.kafka.start()
 
     @cluster(num_nodes=5)
+    @parametrize(broker_version=str(DEV_BRANCH))
+    @parametrize(broker_version=str(LATEST_0_9))
+    @parametrize(broker_version=str(LATEST_0_10_0))
+    @parametrize(broker_version=str(LATEST_0_10_1))
     @parametrize(acks=1, topic=TOPIC_REP_ONE)
     @parametrize(acks=1, topic=TOPIC_REP_THREE)
     @parametrize(acks=-1, topic=TOPIC_REP_THREE)
     @matrix(acks=[1], topic=[TOPIC_REP_THREE], message_size=[10, 100, 1000, 10000, 100000], compression_type=["none", "snappy"], security_protocol=['PLAINTEXT', 'SSL'])
     @cluster(num_nodes=7)
     @parametrize(acks=1, topic=TOPIC_REP_THREE, num_producers=3)
-    def test_producer_throughput(self, acks, topic, num_producers=1, message_size=DEFAULT_RECORD_SIZE,
+    def test_producer_throughput(self, acks=-1, topic=TOPIC_REP_THREE, num_producers=1, message_size=DEFAULT_RECORD_SIZE,
                                  compression_type="none", security_protocol='PLAINTEXT', client_version=str(DEV_BRANCH),
                                  broker_version=str(DEV_BRANCH)):
         """
@@ -84,7 +88,6 @@ class Benchmark(Test):
         """
         client_version = KafkaVersion(client_version)
         broker_version = KafkaVersion(broker_version)
-        self.validate_versions(client_version, broker_version)
         self.start_kafka(security_protocol, security_protocol, broker_version)
         # Always generate the same total amount of data
         nrecords = int(self.target_data_size / message_size)
@@ -101,6 +104,10 @@ class Benchmark(Test):
         return compute_aggregate_throughput(self.producer)
 
     @cluster(num_nodes=5)
+    @parametrize(broker_version=str(DEV_BRANCH))
+    @parametrize(broker_version=str(LATEST_0_9))
+    @parametrize(broker_version=str(LATEST_0_10_0))
+    @parametrize(broker_version=str(LATEST_0_10_1))
     @parametrize(security_protocol='SSL', interbroker_security_protocol='PLAINTEXT')
     @matrix(security_protocol=['PLAINTEXT', 'SSL'], compression_type=["none", "snappy"])
     def test_long_term_producer_throughput(self, compression_type="none", security_protocol='PLAINTEXT',
@@ -116,7 +123,6 @@ class Benchmark(Test):
         """
         client_version = KafkaVersion(client_version)
         broker_version = KafkaVersion(broker_version)
-        self.validate_versions(client_version, broker_version)
         if interbroker_security_protocol is None:
             interbroker_security_protocol = security_protocol
         self.start_kafka(security_protocol, interbroker_security_protocol, broker_version)
@@ -157,6 +163,10 @@ class Benchmark(Test):
         return data
 
     @cluster(num_nodes=5)
+    @parametrize(broker_version=str(DEV_BRANCH))
+    @parametrize(broker_version=str(LATEST_0_9))
+    @parametrize(broker_version=str(LATEST_0_10_0))
+    @parametrize(broker_version=str(LATEST_0_10_1))
     @parametrize(security_protocol='SSL', interbroker_security_protocol='PLAINTEXT')
     @matrix(security_protocol=['PLAINTEXT', 'SSL'], compression_type=["none", "snappy"])
     @cluster(num_nodes=6)
@@ -175,7 +185,6 @@ class Benchmark(Test):
         """
         client_version = KafkaVersion(client_version)
         broker_version = KafkaVersion(broker_version)
-        self.validate_versions(client_version, broker_version)
         if interbroker_security_protocol is None:
             interbroker_security_protocol = security_protocol
         self.start_kafka(security_protocol, interbroker_security_protocol, broker_version)
@@ -189,6 +198,10 @@ class Benchmark(Test):
         return latency(self.perf.results[0]['latency_50th_ms'],  self.perf.results[0]['latency_99th_ms'], self.perf.results[0]['latency_999th_ms'])
 
     @cluster(num_nodes=6)
+    @parametrize(broker_version=str(DEV_BRANCH))
+    @parametrize(broker_version=str(LATEST_0_9))
+    @parametrize(broker_version=str(LATEST_0_10_0))
+    @parametrize(broker_version=str(LATEST_0_10_1))
     @parametrize(security_protocol='PLAINTEXT', new_consumer=False)
     @parametrize(security_protocol='SSL', interbroker_security_protocol='PLAINTEXT')
     @matrix(security_protocol=['PLAINTEXT', 'SSL'], compression_type=["none", "snappy"])
@@ -206,7 +219,6 @@ class Benchmark(Test):
         """
         client_version = KafkaVersion(client_version)
         broker_version = KafkaVersion(broker_version)
-        self.validate_versions(client_version, broker_version)
         if interbroker_security_protocol is None:
             interbroker_security_protocol = security_protocol
         self.start_kafka(security_protocol, interbroker_security_protocol, broker_version)
@@ -238,6 +250,10 @@ class Benchmark(Test):
         return data
 
     @cluster(num_nodes=6)
+    @parametrize(broker_version=str(DEV_BRANCH))
+    @parametrize(broker_version=str(LATEST_0_9))
+    @parametrize(broker_version=str(LATEST_0_10_0))
+    @parametrize(broker_version=str(LATEST_0_10_1))
     @parametrize(security_protocol='PLAINTEXT', new_consumer=False)
     @parametrize(security_protocol='SSL', interbroker_security_protocol='PLAINTEXT')
     @matrix(security_protocol=['PLAINTEXT', 'SSL'], compression_type=["none", "snappy"])
@@ -250,7 +266,6 @@ class Benchmark(Test):
         """
         client_version = KafkaVersion(client_version)
         broker_version = KafkaVersion(broker_version)
-        self.validate_versions(client_version, broker_version)
         if interbroker_security_protocol is None:
             interbroker_security_protocol = security_protocol
         self.start_kafka(security_protocol, interbroker_security_protocol, broker_version)
@@ -277,6 +292,3 @@ class Benchmark(Test):
         self.consumer.group = "test-consumer-group"
         self.consumer.run()
         return compute_aggregate_throughput(self.consumer)
-
-    def validate_versions(self, client_version, broker_version):
-        assert client_version <= broker_version, "Client version %s should be <= than broker version %s" (client_version, broker_version)

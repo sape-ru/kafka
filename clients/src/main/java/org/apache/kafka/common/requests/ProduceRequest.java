@@ -17,7 +17,6 @@
 package org.apache.kafka.common.requests;
 
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.errors.UnsupportedVersionException;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.types.Struct;
@@ -79,10 +78,17 @@ public class ProduceRequest extends AbstractRequest {
 
         @Override
         public ProduceRequest build(short version) {
-            if (version < 2)
-                throw new UnsupportedVersionException("ProduceRequest versions older than 2 are not supported.");
-
-            return new ProduceRequest(version, acks, timeout, partitionRecords, transactionalId);
+            // Version 0 and 1 only support message format 0
+            if (version < 2) {
+                Map<TopicPartition, MemoryRecords> downConvertedPartitionRecords = new HashMap<>();
+                for (Map.Entry<TopicPartition, MemoryRecords> entry: partitionRecords.entrySet()) {
+                    MemoryRecords downConvertedRecords = entry.getValue().downConvert(RecordBatch.MAGIC_VALUE_V0, 0);
+                    downConvertedPartitionRecords.put(entry.getKey(), downConvertedRecords);
+                }
+                return new ProduceRequest(version, acks, timeout, downConvertedPartitionRecords, null);
+            } else {
+                return new ProduceRequest(version, acks, timeout, partitionRecords, transactionalId);
+            }
         }
 
         @Override
