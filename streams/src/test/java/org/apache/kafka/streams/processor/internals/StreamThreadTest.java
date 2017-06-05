@@ -1198,8 +1198,7 @@ public class StreamThreadTest {
 
         final StreamThread thread = new StreamThread(builder, config, clientSupplier, applicationId,
             clientId, processId, new Metrics(), new MockTime(),
-            new StreamsMetadataState(builder, StreamsMetadataState.UNKNOWN_HOST), 0)
-        {
+            new StreamsMetadataState(builder, StreamsMetadataState.UNKNOWN_HOST), 0) {
             @Override
             protected StandbyTask createStandbyTask(final TaskId id, final Collection<TopicPartition> partitions) {
                 return new StandbyTask(
