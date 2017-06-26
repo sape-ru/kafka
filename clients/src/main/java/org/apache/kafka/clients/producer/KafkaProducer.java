@@ -717,7 +717,7 @@ public class KafkaProducer<K, V> implements Producer<K, V> {
      * if the record has partition returns the value otherwise
      * calls configured partitioner class to compute the partition.
      */
-    private int partition(ProducerRecord<K, V> record, byte[] serializedKey , byte[] serializedValue, Cluster cluster) {
+    private int partition(ProducerRecord<K, V> record, byte[] serializedKey, byte[] serializedValue, Cluster cluster) {
         Integer partition = record.partition();
         if (partition != null) {
             List<PartitionInfo> partitions = cluster.partitionsForTopic(record.topic());

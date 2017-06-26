@@ -25,24 +25,24 @@ public class ProducerRecordTest {
 
     @Test
     public void testEqualsAndHashCode() {
-        ProducerRecord<String, Integer> producerRecord = new ProducerRecord<String, Integer>("test", 1 , "key", 1);
+        ProducerRecord<String, Integer> producerRecord = new ProducerRecord<String, Integer>("test", 1, "key", 1);
         assertEquals(producerRecord, producerRecord);
         assertEquals(producerRecord.hashCode(), producerRecord.hashCode());
 
-        ProducerRecord<String, Integer> equalRecord = new ProducerRecord<String, Integer>("test", 1 , "key", 1);
+        ProducerRecord<String, Integer> equalRecord = new ProducerRecord<String, Integer>("test", 1, "key", 1);
         assertEquals(producerRecord, equalRecord);
         assertEquals(producerRecord.hashCode(), equalRecord.hashCode());
 
-        ProducerRecord<String, Integer> topicMisMatch = new ProducerRecord<String, Integer>("test-1", 1 , "key", 1);
+        ProducerRecord<String, Integer> topicMisMatch = new ProducerRecord<String, Integer>("test-1", 1, "key", 1);
         assertFalse(producerRecord.equals(topicMisMatch));
 
-        ProducerRecord<String, Integer> partitionMismatch = new ProducerRecord<String, Integer>("test", 2 , "key", 1);
+        ProducerRecord<String, Integer> partitionMismatch = new ProducerRecord<String, Integer>("test", 2, "key", 1);
         assertFalse(producerRecord.equals(partitionMismatch));
 
-        ProducerRecord<String, Integer> keyMisMatch = new ProducerRecord<String, Integer>("test", 1 , "key-1", 1);
+        ProducerRecord<String, Integer> keyMisMatch = new ProducerRecord<String, Integer>("test", 1, "key-1", 1);
         assertFalse(producerRecord.equals(keyMisMatch));
 
-        ProducerRecord<String, Integer> valueMisMatch = new ProducerRecord<String, Integer>("test", 1 , "key", 2);
+        ProducerRecord<String, Integer> valueMisMatch = new ProducerRecord<String, Integer>("test", 1, "key", 2);
         assertFalse(producerRecord.equals(valueMisMatch));
 
         ProducerRecord<String, Integer> nullFieldsRecord = new ProducerRecord<String, Integer>("topic", null, null, null, null);
