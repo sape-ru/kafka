@@ -32,14 +32,25 @@ buildscript {
   }
 }
 
+ext {
+  mavenUrl = project.hasProperty('mavenUrl') ? project.mavenUrl : ''
+  // Derive the repository to use based on the version and passed properties
+  repositoryUrl = !version.endsWith("SNAPSHOT") ? project.mavenUrl : project.mavenSnapshotUrl
+  // Note: We manually expand ${user.home}, if it exists, because gradle doesn't support variable expansion in property files
+  repositoryUrl = repositoryUrl.replaceFirst('\\\$\\{user.home}', "${System.getProperty("user.home")}")
+}
+
 apply from: "$rootDir/gradle/dependencies.gradle"
 
 allprojects {
 
   repositories {
     mavenCentral()
+    maven { url mavenArtifactoryUrl }
+    maven { url repositoryUrl }
+    mavenLocal()
   }
-  
+
   apply plugin: 'idea'
   apply plugin: 'org.owasp.dependencycheck'
   apply plugin: 'com.github.ben-manes.versions'
@@ -85,7 +96,6 @@ ext {
   skipSigning = project.hasProperty('skipSigning') && skipSigning.toBoolean()
   shouldSign = !skipSigning && !version.endsWith("SNAPSHOT") && project.gradle.startParameter.taskNames.any { it.contains("upload") }
 
-  mavenUrl = project.hasProperty('mavenUrl') ? project.mavenUrl : ''
   mavenUsername = project.hasProperty('mavenUsername') ? project.mavenUsername : ''
   mavenPassword = project.hasProperty('mavenPassword') ? project.mavenPassword : ''
 
@@ -98,33 +108,8 @@ ext {
   commitId = project.hasProperty('commitId') ? commitId : null
 }
 
+apply from: "$rootDir/gradle/cdh-pom.gradle"
 apply from: file('wrapper.gradle')
-
-if (new File('.git').exists()) {
-  apply from: file('gradle/rat.gradle')
-  rat {
-    // Exclude everything under the directory that git should be ignoring via .gitignore or that isn't checked in. These
-    // restrict us only to files that are checked in or are staged.
-    def repo = Grgit.open(project.file('.'))
-    excludes = new ArrayList<String>(repo.clean(ignore: false, directories: true, dryRun: true))
-    // And some of the files that we have checked in should also be excluded from this check
-    excludes.addAll([
-        '**/.git/**',
-        '**/build/**',
-        'CONTRIBUTING.md',
-        'PULL_REQUEST_TEMPLATE.md',
-        'gradlew',
-        'gradlew.bat',
-        'TROGDOR.md',
-        '**/README.md',
-        '**/id_rsa',
-        '**/id_rsa.pub',
-        'checkstyle/suppressions.xml',
-        'streams/quickstart/java/src/test/resources/projects/basic/goal.txt',
-        'streams/streams-scala/logs/*'
-    ])
-  }
-}
 
 subprojects {
   apply plugin: 'java'
@@ -162,7 +147,7 @@ subprojects {
           // To test locally, replace mavenUrl in ~/.gradle/gradle.properties to file://localhost/tmp/myRepo/
           mavenDeployer {
               beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
-              repository(url: "${mavenUrl}") {
+              repository(url: "${repositoryUrl}") {
                   authentication(userName: "${mavenUsername}", password: "${mavenPassword}")
               }
               afterEvaluate {
@@ -236,7 +221,7 @@ subprojects {
     useJUnit {
       excludeCategories 'org.apache.kafka.test.IntegrationTest'
     }
-    
+
   }
 
   jar {
@@ -581,7 +566,7 @@ project(':core') {
     scoverage libs.scoveragePlugin
     scoverage libs.scoverageRuntime
   }
-  
+
   scoverage {
     reportDir = file("${rootProject.buildDir}/scoverage")
     highlighting = false
@@ -602,6 +587,15 @@ project(':core') {
     // To prevent a UniqueResourceException due the same resource existing in both
     // org.apache.directory.api/api-all and org.apache.directory.api/api-ldap-schema-data
     testCompile.exclude module: 'api-ldap-schema-data'
+  }
+
+  configurations {
+    releaseJars { extendsFrom runtime }
+  }
+  dependencies {
+    releaseJars(libs.httpMetricsReporter) {
+      exclude group: 'org.apache.zookeeper', module: 'zookeeper'
+    }
   }
 
   tasks.create(name: "copyDependantLibs", type: Copy) {
@@ -714,6 +708,7 @@ project(':core') {
     from "$rootDir/LICENSE"
     from "$rootDir/NOTICE"
     from(configurations.runtime) { into("libs/") }
+    from(configurations.releaseJars) { into("libs/") }
     from(configurations.archives.artifacts.files) { into("libs/") }
     from(project.siteDocsTar) { into("site-docs/") }
     from(project(':tools').jar) { into("libs/") }
