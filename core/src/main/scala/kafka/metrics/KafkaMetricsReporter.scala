@@ -24,6 +24,7 @@ import kafka.utils.{CoreUtils, VerifiableProperties}
 import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.mutable.ArrayBuffer
+import kafka.server.KafkaServer
 
 
 /**
@@ -78,3 +79,6 @@ object KafkaMetricsReporter {
   }
 }
 
+trait KafkaServerMetricsReporter extends KafkaMetricsReporter {
+  def setServer(server: KafkaServer)
+}

@@ -497,6 +497,11 @@ project(':core') {
     compile project(':clients')
     compile libs.joptSimple
     compile libs.metrics
+    compile libs.metricsServlet
+    compile libs.jacksonJaxrsJsonProvider
+    compile libs.jerseyContainerServlet
+    compile libs.jettyServer
+    compile libs.jettyServlet
     compile libs.scala
     compile libs.slf4jlog4j
     compile libs.zkclient
@@ -554,9 +559,6 @@ project(':core') {
       exclude group: 'org.datanucleus'
       exclude group: 'org.apache.sentry', module: 'sentry-policy-search'
       exclude group: 'org.apache.sentry', module: 'sentry-core-model-search'
-    }
-    releaseJars (libs.httpMetricsReporter) {
-      exclude group: 'org.apache.zookeeper', module: 'zookeeper'
     }
     releaseJars libs.guava
   }
