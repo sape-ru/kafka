@@ -460,7 +460,6 @@ subprojects {
     }
 
     configure(scalaCompileOptions.forkOptions) {
-      memoryMaximumSize = '1g'
       jvmArgs = ['-Xss2m']
     }
   }
@@ -665,6 +664,7 @@ project(':core') {
     compile libs.scalaReflect
     compile libs.scalaLogging
     compile libs.slf4jApi
+    compile libs.metricsServlet
     compile libs.jacksonJaxrsJsonProvider
     compile libs.jerseyContainerServlet
     compile libs.jettyServer
@@ -728,11 +728,6 @@ project(':core') {
 
   configurations {
     releaseJars { extendsFrom runtime }
-  }
-  dependencies {
-    releaseJars(libs.httpMetricsReporter) {
-      exclude group: 'org.apache.zookeeper', module: 'zookeeper'
-    }
   }
 
   tasks.create(name: "copyDependantLibs", type: Copy) {
