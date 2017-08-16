@@ -548,6 +548,7 @@ project(':core') {
       exclude group: 'org.apache.hive'
       exclude group: 'org.apache.shiro'
       exclude group: 'org.eclipse.jetty'
+      exclude group: 'com.sun.jersey'
       exclude group: 'org.datanucleus'
       exclude group: 'org.apache.sentry', module: 'sentry-policy-search'
       exclude group: 'org.apache.sentry', module: 'sentry-core-model-search'
@@ -555,6 +556,7 @@ project(':core') {
     releaseJars (libs.httpMetricsReporter) {
       exclude group: 'org.apache.zookeeper', module: 'zookeeper'
     }
+    releaseJars libs.guava
   }
 
   configurations {
