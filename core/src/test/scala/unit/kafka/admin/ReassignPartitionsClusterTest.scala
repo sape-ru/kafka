@@ -20,8 +20,9 @@ import kafka.utils.ZkUtils._
 import kafka.utils.{Logging, TestUtils, ZkUtils}
 import kafka.zk.ZooKeeperTestHarness
 import org.junit.Assert.{assertEquals, assertTrue}
-import org.junit.{After, Before, Test}
+import org.junit.{After, Before, Ignore, Test}
 import kafka.admin.ReplicationQuotaUtils._
+
 import scala.collection.Map
 import scala.collection.Seq
 
@@ -142,6 +143,7 @@ class ReassignPartitionsClusterTest extends ZooKeeperTestHarness with Logging {
     assertEquals(Seq(100, 102), actual("topic2")(2))//changed
   }
 
+  @Ignore  // Reenable if https://issues.apache.org/jira/browse/KAFKA-4262 gets fixed
   @Test
   def shouldExecuteThrottledReassignment() {
 
