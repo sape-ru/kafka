@@ -27,9 +27,9 @@
     <name>Kafka Streams :: Quickstart</name>
 
     <parent>
-        <groupId>org.apache</groupId>
-        <artifactId>apache</artifactId>
-        <version>18</version>
+        <groupId>com.cloudera.cdh</groupId>
+        <artifactId>cdh-root</artifactId>
+        <version>6.x-SNAPSHOT</version>
     </parent>
 
     <modules>

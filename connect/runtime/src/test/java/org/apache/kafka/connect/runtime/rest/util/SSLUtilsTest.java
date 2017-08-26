@@ -28,6 +28,7 @@ import org.junit.Test;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 public class SSLUtilsTest {
     private static final Map<String, String> DEFAULT_CONFIG = new HashMap<>();
@@ -81,7 +82,7 @@ public class SSLUtilsTest {
         SslContextFactory ssl = SSLUtils.createSslContextFactory(config);
 
         Assert.assertEquals("file:///path/to/keystore", ssl.getKeyStorePath());
-        Assert.assertEquals("file:///path/to/truststore", ssl.getTrustStorePath());
+        Assert.assertEquals("file:///path/to/truststore", ssl.getTrustStore().toString());
         Assert.assertEquals("SunJSSE", ssl.getProvider());
         Assert.assertArrayEquals(new String[] {"SSL_RSA_WITH_RC4_128_SHA", "SSL_RSA_WITH_RC4_128_MD5"}, ssl.getIncludeCipherSuites());
         Assert.assertEquals("SHA1PRNG", ssl.getSecureRandomAlgorithm());
