@@ -31,58 +31,62 @@ private class KafkaHttpMetricsReporter extends KafkaServerMetricsReporter
   private var bindAddress: String = null
   private var port: Int = 0
 
-  override def getMBeanName = "kafka:type=kafka.metrics.KafkaHttpMetricsReporter"
+  override def getMBeanName = "kafka:type=nl.techop.kafka.KafkaHttpMetricsReporter"
 
   override def init(props: VerifiableProperties): Unit = {
-    if (!initialized) {
-      metricsConfig = new KafkaMetricsConfig(props)
+    synchronized {
+      if (!initialized) {
+        metricsConfig = new KafkaMetricsConfig(props)
+        bindAddress = props.getString("kafka.http.metrics.host", defaultBindAddress)
+        port = props.getInt("kafka.http.metrics.port", defaultPort)
 
-      bindAddress = props.getString("kafka.http.metrics.host", defaultBindAddress)
-      port = props.getInt("kafka.http.metrics.port", defaultPort)
-
-      if (props.getBoolean("kafka.http.metrics.reporter.enabled", default = false)) {
         initialized = true
-        startReporter(metricsConfig.pollingIntervalSecs)
+      } else {
+        error("Kafka Http Metrics Reporter is already initialized")
       }
     }
   }
 
   override def setServer(server: KafkaServer) {
     synchronized {
-      if (initialized && !configured) {
-        // creating the socket address for binding to the specified address and port
-        val inetSocketAddress = new InetSocketAddress(bindAddress, port)
+      if (initialized) {
+        if (!configured) {
+          // creating the socket address for binding to the specified address and port
+          val inetSocketAddress = new InetSocketAddress(bindAddress, port)
 
-        // create new Jetty server
-        metricsServer = new Server(inetSocketAddress)
+          // create new Jetty server
+          metricsServer = new Server(inetSocketAddress)
 
-        // creating the servlet context handler
-        val handler = new ServletContextHandler(metricsServer, "/*")
+          // creating the servlet context handler
+          val handler = new ServletContextHandler(metricsServer, "/*")
 
-        // Add a default 404 Servlet
-        addMetricsServlet(handler, new DefaultServlet() with NoDoTrace, "/")
+          // Add a default 404 Servlet
+          addMetricsServlet(handler, new DefaultServlet() with NoDoTrace, "/")
 
-        // Add Metrics Servlets
-        addMetricsServlet(handler, new MetricsServlet() with NoDoTrace, "/api/metrics")
-        addMetricsServlet(handler, new ThreadDumpServlet() with NoDoTrace, "/api/threads")
-        addMetricsServlet(handler, new PingServlet() with NoDoTrace, "/api/ping")
+          // Add Metrics Servlets
+          addMetricsServlet(handler, new MetricsServlet() with NoDoTrace, "/api/metrics")
+          addMetricsServlet(handler, new ThreadDumpServlet() with NoDoTrace, "/api/threads")
+          addMetricsServlet(handler, new PingServlet() with NoDoTrace, "/api/ping")
 
-        // Add Custom Servlets
-        val resourceConfig: ResourceConfig = new ResourceConfig
-        resourceConfig.register(new JacksonJsonProvider(), 0)
-        resourceConfig.register(new KafkaTopicsResource(server), 0)
+          // Add Custom Servletsval
+          val resourceConfig: ResourceConfig = new ResourceConfig
+          resourceConfig.register(new JacksonJsonProvider(), 0)
+          resourceConfig.register(new KafkaTopicsResource(server), 0)
 
-        val servletContainer: ServletContainer = new ServletContainer(resourceConfig)
-        val servletHolder: ServletHolder = new ServletHolder(servletContainer)
-        handler.addServlet(servletHolder, "/api/*")
+          val servletContainer: ServletContainer = new ServletContainer(resourceConfig)
+          val servletHolder: ServletHolder = new ServletHolder(servletContainer)
+          handler.addServlet(servletHolder, "/api/*")
 
-        // Add the handler to the server
-        metricsServer.setHandler(handler)
+          // Add the handler to the server
+          metricsServer.setHandler(handler)
 
-        configured = true
-        startReporter(metricsConfig.pollingIntervalSecs)
+          configured = true
+          startReporter(metricsConfig.pollingIntervalSecs)
+        } else {
+          error("Kafka Http Metrics Reporter is already configured")
+        }
       } else {
-        error("Kafka Http Metrics Reporter already initialized")
+        error("Kafka Http Metrics Reporter is not initialized")
       }
     }
   }
@@ -99,25 +103,34 @@ private class KafkaHttpMetricsReporter extends KafkaServerMetricsReporter
 
   override def startReporter(pollingPeriodSecs: Long) {
     synchronized {
-      if (initialized && configured && !running) {
-        metricsServer.start()
-        running = true
-        info(s"Started Kafka HTTP metrics reporter at ${metricsServer.getURI}")
-      } else if (running) {
-        error("Kafka Http Metrics Reporter already running")
+      if (initialized && configured) {
+        if (!running) {
+          metricsServer.start()
+          running = true
+          info(s"Started Kafka HTTP metrics reporter at ${metricsServer.getURI}")
+        } else {
+          error("Kafka Http Metrics Reporter is already running")
+        }
+      } else {
+        error("Kafka Http Metrics Reporter is not initialized or not configured")
       }
     }
   }
 
   override def stopReporter() {
     synchronized {
-      if (initialized && configured && running) {
-        metricsServer.stop()
-        running = false
-        info("Stopped Kafka CSV metrics reporter")
-      } else if (!running) {
-        error("Kafka Http Metrics Reporter already stopped")
+      if (initialized && configured) {
+        if (running) {
+          metricsServer.stop()
+          running = false
+          info("Stopped Kafka CSV metrics reporter")
+        } else {
+          error("Kafka Http Metrics Reporter already stopped")
+        }
+      } else {
+        error("Kafka Http Metrics Reporter is not initialized or not configured")
       }
     }
   }
+
 }
