@@ -21,26 +21,19 @@ import java.util.{Collections, Properties}
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.{GET, Path, Produces}
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import kafka.server.KafkaServer
 
 import scala.collection.JavaConverters._
 
-case class KafkaTopic(isInternal: Boolean, partitions: java.util.List[KafkaPartition], topicProps: Properties) {
+case class KafkaTopic(internal: Boolean, getPartitions: java.util.List[KafkaPartition], getTopicProps: Properties) {
 
-  // Required because of JacksonJsonProvider
-  def getPartitions = partitions
-
-}
-
-case class KafkaPartition(partitionId: Int, replicas: java.util.List[Int], leader: Int, isr: java.util.List[Int]) {
-
-  // Required because of JacksonJsonProvider
-  def getPartitionId = partitionId
-  def getReplicas = replicas
-  def getLeader = leader
-  def getIsr = isr
+  @JsonProperty(value="isInternal")
+  def isInternal = internal
 
 }
+
+case class KafkaPartition(getPartitionId: Int, getReplicas: java.util.List[Int], getLeader: Int, getIsr: java.util.List[Int])
 
 @Path("/topics")
 @Produces(Array(MediaType.APPLICATION_JSON))
