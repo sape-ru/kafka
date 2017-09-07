@@ -112,7 +112,6 @@ ext {
   commitId = project.hasProperty('commitId') ? commitId : null
 }
 
-apply from: "$rootDir/gradle/cdh-pom.gradle"
 apply from: file('wrapper.gradle')
 
 subprojects {
@@ -540,7 +539,9 @@ project(':core') {
     compile libs.jettyServlet
     compile libs.scala
     compile libs.slf4jlog4j
-    compile libs.zkclient
+    compile (libs.zkclient) {
+      exclude group: 'org.apache.zookeeper', module: 'zookeeper'
+    }
     compile libs.zookeeper
 
     testCompile project(':clients').sourceSets.test.output
