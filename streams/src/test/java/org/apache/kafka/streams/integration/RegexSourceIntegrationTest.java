@@ -43,6 +43,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -64,7 +65,7 @@ import static org.junit.Assert.assertThat;
  * End-to-end integration test based on using regex and named topics for creating sources, using
  * an embedded Kafka cluster.
  */
-
+@Ignore
 public class RegexSourceIntegrationTest {
     @ClassRule
     public static final EmbeddedSingleNodeKafkaCluster CLUSTER = new EmbeddedSingleNodeKafkaCluster();
