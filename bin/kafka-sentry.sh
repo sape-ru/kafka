@@ -43,4 +43,4 @@ fi
 # supress the HADOOP_HOME warnings in 1.x.x
 export HADOOP_HOME_WARN_SUPPRESS=true
 
-exec $(dirname $0)/kafka-run-class.sh org.apache.sentry.provider.db.generic.tools.SentryShellKafka -conf $conf_file "$@"
+exec $(dirname $0)/kafka-run-class.sh org.apache.sentry.cli.tools.SentryShellGeneric -conf $conf_file -t kafka "$@"
