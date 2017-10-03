@@ -146,9 +146,14 @@ if [[ -z "$SENTRY_HOME" ]]; then
   fi
 fi
 if [[ -n "$SENTRY_HOME" ]]; then
-  for f in ${SENTRY_HOME}/lib/*.jar ${SENTRY_HOME}/lib/plugins/*.jar; do
-    export CLASSPATH=${CLASSPATH}:${f}
+  for dir in ${SENTRY_HOME}/lib ${SENTRY_HOME}/lib/plugins; do
+    export CLASSPATH=${CLASSPATH}:"${dir}/*"
   done
+  # Include the sentry configuration on the classpath
+  if [ -z "$SENTRY_CONF_DIR" ]; then
+     SENTRY_CONF_DIR="/etc/kafka/conf/sentry-conf"
+  fi
+  export CLASSPATH=${CLASSPATH}:${SENTRY_CONF_DIR}
 fi
 
 shopt -u nullglob
@@ -275,6 +280,9 @@ fi
 
 # If Cygwin is detected, classpath is converted to Windows format.
 (( CYGWIN )) && CLASSPATH=$(cygpath --path --mixed "${CLASSPATH}")
+
+
+echo "Final CLASSPATH is $CLASSPATH"
 
 # Launch mode
 if [ "x$DAEMON_MODE" = "xtrue" ]; then
