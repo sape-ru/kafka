@@ -85,7 +85,7 @@ public class ProduceRequestTest {
 
         ProduceRequest.Builder requestBuilder = ProduceRequest.Builder.forMagic(RecordBatch.MAGIC_VALUE_V1, (short) 1,
                 5000, produceData, null);
-        assertEquals(2, requestBuilder.oldestAllowedVersion());
+        assertEquals(0, requestBuilder.oldestAllowedVersion());
         assertEquals(2, requestBuilder.latestAllowedVersion());
     }
 
