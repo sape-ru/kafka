@@ -105,8 +105,7 @@ public class MetadataRequest extends AbstractRequest {
 
         @Override
         public MetadataRequest build(short version) {
-            if (version < 1)
-                throw new UnsupportedVersionException("MetadataRequest versions older than 1 are not supported.");
+            // MetadataRequest version 0 and 1 are the same
             if (!allowAutoTopicCreation && version < 4)
                 throw new UnsupportedVersionException("MetadataRequest versions older than 4 don't support the " +
                         "allowAutoTopicCreation field");

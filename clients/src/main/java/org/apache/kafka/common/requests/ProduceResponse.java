@@ -188,7 +188,9 @@ public class ProduceResponse extends AbstractResponse {
                 int partition = partRespStruct.get(PARTITION_ID);
                 Errors error = Errors.forCode(partRespStruct.get(ERROR_CODE));
                 long offset = partRespStruct.getLong(BASE_OFFSET_KEY_NAME);
-                long logAppendTime = partRespStruct.getLong(LOG_APPEND_TIME_KEY_NAME);
+                long logAppendTime = RecordBatch.NO_TIMESTAMP;
+                if (partRespStruct.hasField(LOG_APPEND_TIME_KEY_NAME))
+                    logAppendTime = partRespStruct.getLong(LOG_APPEND_TIME_KEY_NAME);
                 long logStartOffset = partRespStruct.getOrElse(LOG_START_OFFSET_FIELD, INVALID_OFFSET);
                 TopicPartition tp = new TopicPartition(topic, partition);
                 responses.put(tp, new PartitionResponse(error, offset, logAppendTime, logStartOffset));
