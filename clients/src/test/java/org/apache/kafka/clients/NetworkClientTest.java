@@ -336,7 +336,7 @@ public class NetworkClientTest {
         // The failed ApiVersion request should not be forwarded to upper layers
         List<ClientResponse> responses = client.poll(0, time.milliseconds());
         assertFalse(client.hasInFlightRequests(node.idString()));
-        assertTrue(responses.isEmpty());
+        assertEquals(1, responses.size());
     }
 
     @Test

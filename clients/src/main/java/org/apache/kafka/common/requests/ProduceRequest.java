@@ -138,7 +138,7 @@ public class ProduceRequest extends AbstractRequest {
             final short minVersion;
             final short maxVersion;
             if (magic < RecordBatch.MAGIC_VALUE_V2) {
-                minVersion = 2;
+                minVersion = 0;
                 maxVersion = 2;
             } else {
                 minVersion = 3;
