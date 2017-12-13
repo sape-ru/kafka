@@ -25,6 +25,7 @@ from kafkatest.services.connect import ConnectDistributedService, VerifiableSour
 from kafkatest.services.console_consumer import ConsoleConsumer
 from kafkatest.services.security.security_config import SecurityConfig
 from kafkatest.version import DEV_BRANCH, LATEST_0_11_0, LATEST_0_10_2, LATEST_0_10_1, LATEST_0_10_0, LATEST_0_9, LATEST_0_8_2, KafkaVersion
+from kafkatest.version import CDK_2_0_0, CDK_2_0_1, CDK_2_0_2, CDK_2_1_0, CDK_2_1_1, CDK_2_1_2, CDK_2_2_0, CDK_3_0_0, CDK_3_1_0, CDH_6_0_0
 
 from collections import Counter, namedtuple
 import itertools
@@ -505,18 +506,30 @@ class ConnectDistributedTest(Test):
 
     @cluster(num_nodes=5)
     @parametrize(broker_version=str(DEV_BRANCH), auto_create_topics=False, security_protocol=SecurityConfig.PLAINTEXT)
+    # commented out fix will be from KAFKA-7489
+    # @parametrize(broker_version=str(CDK_2_0_0), auto_create_topics=True, security_protocol=SecurityConfig.PLAINTEXT)
+    # @parametrize(broker_version=str(CDK_2_0_1), auto_create_topics=True, security_protocol=SecurityConfig.PLAINTEXT)
+    # @parametrize(broker_version=str(CDK_2_0_2), auto_create_topics=True, security_protocol=SecurityConfig.PLAINTEXT)
+    @parametrize(broker_version=str(CDK_2_1_0), auto_create_topics=True, security_protocol=SecurityConfig.PLAINTEXT)
+    @parametrize(broker_version=str(CDK_2_1_1), auto_create_topics=True, security_protocol=SecurityConfig.PLAINTEXT)
+    @parametrize(broker_version=str(CDK_2_1_2), auto_create_topics=True, security_protocol=SecurityConfig.PLAINTEXT)
+    @parametrize(broker_version=str(CDK_2_2_0), auto_create_topics=False, security_protocol=SecurityConfig.PLAINTEXT)
+    @parametrize(broker_version=str(CDK_3_0_0), auto_create_topics=False, security_protocol=SecurityConfig.PLAINTEXT)
+    @parametrize(broker_version=str(CDK_3_1_0), auto_create_topics=False, security_protocol=SecurityConfig.PLAINTEXT)
+    @parametrize(broker_version=str(CDH_6_0_0), auto_create_topics=False, security_protocol=SecurityConfig.PLAINTEXT)
     @parametrize(broker_version=str(LATEST_0_11_0), auto_create_topics=False, security_protocol=SecurityConfig.PLAINTEXT)
     @parametrize(broker_version=str(LATEST_0_10_2), auto_create_topics=False, security_protocol=SecurityConfig.PLAINTEXT)
     @parametrize(broker_version=str(LATEST_0_10_1), auto_create_topics=False, security_protocol=SecurityConfig.PLAINTEXT)
     @parametrize(broker_version=str(LATEST_0_10_0), auto_create_topics=True, security_protocol=SecurityConfig.PLAINTEXT)
-    @parametrize(broker_version=str(LATEST_0_9), auto_create_topics=True, security_protocol=SecurityConfig.PLAINTEXT)
+    # commented out fix will be from KAFKA-7489
+    # @parametrize(broker_version=str(LATEST_0_9), auto_create_topics=True, security_protocol=SecurityConfig.PLAINTEXT)
     def test_broker_compatibility(self, broker_version, auto_create_topics, security_protocol):
         """
         Verify that Connect will start up with various broker versions with various configurations. 
         When Connect distributed starts up, it either creates internal topics (v0.10.1.0 and after) 
         or relies upon the broker to auto-create the topics (v0.10.0.x and before).
         """
-        self.setup_services(broker_version=broker_version, auto_create_topics=auto_create_topics, security_protocol=security_protocol)
+        self.setup_services(broker_version=KafkaVersion(broker_version), auto_create_topics=auto_create_topics, security_protocol=security_protocol)
         self.cc.set_configs(lambda node: self.render("connect-distributed.properties", node=node))
 
         self.cc.start()

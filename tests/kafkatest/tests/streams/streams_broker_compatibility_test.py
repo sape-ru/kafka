@@ -21,6 +21,7 @@ from kafkatest.services.streams import StreamsBrokerCompatibilityService
 from kafkatest.services.verifiable_consumer import VerifiableConsumer
 from kafkatest.services.zookeeper import ZookeeperService
 from kafkatest.version import LATEST_0_11_0, LATEST_0_10_2, LATEST_0_10_1, LATEST_0_10_0, LATEST_1_0, LATEST_1_1, LATEST_2_0, KafkaVersion
+from kafkatest.version import CDK_2_0_0, CDK_2_0_1, CDK_2_0_2, CDK_2_1_0, CDK_2_1_1, CDK_2_1_2, CDK_2_2_0, CDK_3_0_0
 
 
 class StreamsBrokerCompatibility(Test):
@@ -55,6 +56,7 @@ class StreamsBrokerCompatibility(Test):
 
    
     @parametrize(broker_version=str(LATEST_0_10_2))
+    @parametrize(broker_version=str(CDK_2_2_0))
     @parametrize(broker_version=str(LATEST_0_10_1))
     def test_fail_fast_on_incompatible_brokers_if_eos_enabled(self, broker_version):
         self.kafka.set_version(KafkaVersion(broker_version))
@@ -74,7 +76,9 @@ class StreamsBrokerCompatibility(Test):
     @parametrize(broker_version=str(LATEST_1_1))
     @parametrize(broker_version=str(LATEST_1_0))
     @parametrize(broker_version=str(LATEST_0_11_0))
+    @parametrize(broker_version=str(CDK_3_0_0))
     @parametrize(broker_version=str(LATEST_0_10_2))
+    @parametrize(broker_version=str(CDK_2_2_0))
     @parametrize(broker_version=str(LATEST_0_10_1))
     def test_compatible_brokers_eos_disabled(self, broker_version):
         self.kafka.set_version(KafkaVersion(broker_version))
@@ -93,6 +97,9 @@ class StreamsBrokerCompatibility(Test):
         self.kafka.stop()
 
     @parametrize(broker_version=str(LATEST_0_10_0))
+    @parametrize(broker_version=str(CDK_2_1_0))
+    @parametrize(broker_version=str(CDK_2_1_1))
+    @parametrize(broker_version=str(CDK_2_1_2))
     def test_fail_fast_on_incompatible_brokers(self, broker_version):
         self.kafka.set_version(KafkaVersion(broker_version))
         self.kafka.start()
