@@ -4,7 +4,7 @@ import java.net.InetSocketAddress
 import javax.servlet.http.{HttpServlet, HttpServletRequest, HttpServletResponse}
 
 import com.fasterxml.jackson.jaxrs.json.JacksonJsonProvider
-import com.yammer.metrics.reporting.{MetricsServlet, PingServlet, ThreadDumpServlet}
+import com.yammer.metrics.reporting.{HealthCheckServlet, MetricsServlet, PingServlet, ThreadDumpServlet}
 import kafka.metrics.{KafkaMetricsConfig, KafkaMetricsReporterMBean, KafkaServerMetricsReporter}
 import kafka.server.KafkaServer
 import kafka.utils.{Logging, VerifiableProperties}
@@ -15,11 +15,14 @@ import org.glassfish.jersey.servlet.ServletContainer
 
 private trait KafkaHttpMetricsReporterMBean extends KafkaMetricsReporterMBean
 
+object KafkaHttpMetricsReporter {
+  val defaultPort = 8080
+  val defaultBindAddress = "localhost"
+}
+
 private class KafkaHttpMetricsReporter extends KafkaServerMetricsReporter
                               with KafkaHttpMetricsReporterMBean
                               with Logging {
-  val defaultPort = 8080
-  val defaultBindAddress = "localhost"
 
   private var metricsServer: Server = null
 
@@ -36,11 +39,13 @@ private class KafkaHttpMetricsReporter extends KafkaServerMetricsReporter
   override def init(props: VerifiableProperties): Unit = {
     synchronized {
       if (!initialized) {
+        info("Initializing Kafka Http Metrics Reporter")
         metricsConfig = new KafkaMetricsConfig(props)
-        bindAddress = props.getString("kafka.http.metrics.host", defaultBindAddress)
-        port = props.getInt("kafka.http.metrics.port", defaultPort)
+        bindAddress = props.getString("kafka.http.metrics.host", KafkaHttpMetricsReporter.defaultBindAddress)
+        port = props.getInt("kafka.http.metrics.port", KafkaHttpMetricsReporter.defaultPort)
 
         initialized = true
+        info("Initialized Kafka Http Metrics Reporter")
       } else {
         error("Kafka Http Metrics Reporter is already initialized")
       }
@@ -51,6 +56,7 @@ private class KafkaHttpMetricsReporter extends KafkaServerMetricsReporter
     synchronized {
       if (initialized) {
         if (!configured) {
+          info("Starting Kafka Http Metrics Reporter")
           // creating the socket address for binding to the specified address and port
           val inetSocketAddress = new InetSocketAddress(bindAddress, port)
 
@@ -67,11 +73,13 @@ private class KafkaHttpMetricsReporter extends KafkaServerMetricsReporter
           addMetricsServlet(handler, new MetricsServlet() with NoDoTrace, "/api/metrics")
           addMetricsServlet(handler, new ThreadDumpServlet() with NoDoTrace, "/api/threads")
           addMetricsServlet(handler, new PingServlet() with NoDoTrace, "/api/ping")
+          addMetricsServlet(handler, new HealthCheckServlet() with NoDoTrace, "/api/healthcheck")
 
-          // Add Custom Servletsval
+          // Add Custom Servlets
           val resourceConfig: ResourceConfig = new ResourceConfig
           resourceConfig.register(new JacksonJsonProvider(), 0)
           resourceConfig.register(new KafkaTopicsResource(server), 0)
+          resourceConfig.register(new TopicMetricNameResource(server), 0)
 
           val servletContainer: ServletContainer = new ServletContainer(resourceConfig)
           val servletHolder: ServletHolder = new ServletHolder(servletContainer)
@@ -82,6 +90,7 @@ private class KafkaHttpMetricsReporter extends KafkaServerMetricsReporter
 
           configured = true
           startReporter(metricsConfig.pollingIntervalSecs)
+          info("Started Kafka Http Metrics Reporter")
         } else {
           error("Kafka Http Metrics Reporter is already configured")
         }
