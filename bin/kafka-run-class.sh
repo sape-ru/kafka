@@ -139,22 +139,11 @@ do
   fi
 done
 
-# Set SENTRY_HOME if possible and add Sentry jars to classpath
-if [[ -z "$SENTRY_HOME" ]]; then
-  if [[ -d ${base_dir}/../sentry ]]; then
-    export SENTRY_HOME=`readlink -m ${base_dir}/../sentry`
-  fi
+# Include the sentry configuration on the classpath
+if [ -z "$SENTRY_CONF_DIR" ]; then
+ SENTRY_CONF_DIR="/etc/kafka/conf/sentry-conf"
 fi
-if [[ -n "$SENTRY_HOME" ]]; then
-  for dir in ${SENTRY_HOME}/lib ${SENTRY_HOME}/lib/plugins; do
-    export CLASSPATH=${CLASSPATH}:"${dir}/*"
-  done
-  # Include the sentry configuration on the classpath
-  if [ -z "$SENTRY_CONF_DIR" ]; then
-     SENTRY_CONF_DIR="/etc/kafka/conf/sentry-conf"
-  fi
-  export CLASSPATH=${CLASSPATH}:${SENTRY_CONF_DIR}
-fi
+export CLASSPATH=${CLASSPATH}:${SENTRY_CONF_DIR}
 
 shopt -u nullglob
 

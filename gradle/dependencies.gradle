@@ -71,10 +71,12 @@ versions += [
   scoverage: "1.3.1",
   slf4j: cdhSlf4jVersion,
   snappy: "1.1.4",
+  sentry: "1.5.1-cdh5.15.0",
   zkclient: "0.10",
   zookeeper: cdhZookeeperVersion,
   jfreechart: "1.0.0",
   mavenArtifact: "3.5.0",
+  guava: "20.0"
 ]
 
 libs += [
@@ -114,11 +116,13 @@ libs += [
   scalatest: "org.scalatest:scalatest_$versions.baseScala:$versions.scalatest",
   scoveragePlugin: "org.scoverage:scalac-scoverage-plugin_$versions.baseScala:$versions.scoverage",
   scoverageRuntime: "org.scoverage:scalac-scoverage-runtime_$versions.baseScala:$versions.scoverage",
+  sentryKafkaBinding: "org.apache.sentry:sentry-binding-kafka:$versions.sentry",
   slf4jApi: "org.slf4j:slf4j-api:$versions.slf4j",
   slf4jlog4j: "org.slf4j:slf4j-log4j12:$versions.slf4j",
   snappy: "org.xerial.snappy:snappy-java:$versions.snappy",
   zkclient: "com.101tec:zkclient:$versions.zkclient",
   zookeeper: "org.apache.zookeeper:zookeeper:$versions.zookeeper",
   jfreechart: "jfreechart:jfreechart:$versions.jfreechart",
-  mavenArtifact: "org.apache.maven:maven-artifact:$versions.mavenArtifact"
+  mavenArtifact: "org.apache.maven:maven-artifact:$versions.mavenArtifact",
+  guava: "com.google.guava:guava:$versions.guava"
 ]
