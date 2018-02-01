@@ -30,11 +30,8 @@ configurations.cdhPom.resolve().each { file ->
     ext.cdhSlf4jVersion = parser.properties."cdh.slf4j.version"
     logger.info("Setting slf4j version to $cdhSlf4jVersion")
 
-    ext.cdhJetty9Version = parser.properties."cdh.jetty9.version"
-    logger.info("Setting jetty9 version to $cdhJetty9Version")
-
-    ext.cdhJackson2Version = parser.properties."cdh.jackson2.version"
-    logger.info("Setting jackson2 version to $cdhJackson2Version")
+    ext.cdhJacksonVersion = parser.properties."cdh.jackson.version"
+    logger.info("Setting jackson version to $cdhJacksonVersion")
 
     // Only set if its not already to support CLI overrides
     if (!project.hasProperty('scalaVersion')) {
