@@ -20,9 +20,20 @@ import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 
 buildscript {
+  ext {
+    mavenUrl = project.hasProperty('mavenUrl') ? project.mavenUrl : ''
+    // Derive the repository to use based on the version and passed properties
+    repositoryUrl = !version.endsWith("SNAPSHOT") ? project.mavenUrl : project.mavenSnapshotUrl
+    // Note: We manually expand ${user.home}, if it exists, because gradle doesn't support variable expansion in property files
+    repositoryUrl = repositoryUrl.replaceFirst('\\\$\\{user.home}', "${System.getProperty("user.home")}")
+  }
+
   repositories {
     mavenCentral()
     jcenter()
+    maven { url mavenArtifactoryUrl }
+    maven { url repositoryUrl }
+    mavenLocal()
   }
   apply from: file('gradle/buildscript.gradle'), to: buildscript
 
@@ -33,14 +44,6 @@ buildscript {
     classpath 'org.scoverage:gradle-scoverage:2.1.0'
     classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.1'
   }
-}
-
-ext {
-  mavenUrl = project.hasProperty('mavenUrl') ? project.mavenUrl : ''
-  // Derive the repository to use based on the version and passed properties
-  repositoryUrl = !version.endsWith("SNAPSHOT") ? project.mavenUrl : project.mavenSnapshotUrl
-  // Note: We manually expand ${user.home}, if it exists, because gradle doesn't support variable expansion in property files
-  repositoryUrl = repositoryUrl.replaceFirst('\\\$\\{user.home}', "${System.getProperty("user.home")}")
 }
 
 apply from: "$rootDir/gradle/dependencies.gradle"
