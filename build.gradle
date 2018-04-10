@@ -29,11 +29,11 @@ buildscript {
   }
 
   repositories {
+    mavenLocal()
+    maven { url repositoryUrl }
+    maven { url mavenArtifactoryUrl }
     mavenCentral()
     jcenter()
-    maven { url mavenArtifactoryUrl }
-    maven { url repositoryUrl }
-    mavenLocal()
   }
   apply from: file('gradle/buildscript.gradle'), to: buildscript
 
@@ -53,10 +53,11 @@ allprojects {
   apply plugin: "jacoco"
 
   repositories {
-    mavenCentral()
-    maven { url mavenArtifactoryUrl }
-    maven { url repositoryUrl }
     mavenLocal()
+    maven { url repositoryUrl }
+    maven { url mavenArtifactoryUrl }
+    mavenCentral()
+    jcenter()
   }
 
   apply plugin: 'com.github.ben-manes.versions'
