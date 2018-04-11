@@ -30,7 +30,7 @@ configurations.cdhPom.resolve().each { file ->
     ext.cdhSlf4jVersion = parser.properties."cdh.slf4j.version"
     logger.info("Setting slf4j version to $cdhSlf4jVersion")
 
-    ext.cdhJacksonVersion = parser.properties."cdh.jackson.version"
+    ext.cdhJacksonVersion = "2.9.5"
     logger.info("Setting jackson version to $cdhJacksonVersion")
 
     // Only set if its not already to support CLI overrides
