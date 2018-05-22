@@ -33,6 +33,9 @@ configurations.cdhPom.resolve().each { file ->
     ext.cdhJacksonVersion = "2.9.5"
     logger.info("Setting jackson version to $cdhJacksonVersion")
 
+    ext.cdhSentryVersion = parser.properties."cdh.sentry.version"
+    logger.info("Setting sentry version to $cdhSentryVersion")
+
     // Only set if its not already to support CLI overrides
     if (!project.hasProperty('scalaVersion')) {
       scalaVersion = parser.properties."cdh.scala.version".toString()
