@@ -120,9 +120,6 @@ object ZkUtils {
     path != null && SensitiveZkRootPaths.exists(path.startsWith(_))
   }
 
-  @deprecated("This is deprecated, use defaultAcls(isSecure, path) which doesn't make sensitive data world readable", since = "0.10.2.1")
-  def DefaultAcls(isSecure: Boolean): java.util.List[ACL] = defaultAcls(isSecure, "")
-
   def defaultAcls(isSecure: Boolean, path: String): java.util.List[ACL] = {
     if (isSecure) {
       val list = new java.util.ArrayList[ACL]
@@ -276,9 +273,6 @@ class ZkUtils(zkClientWrap: ZooKeeperClientWrapper,
   val zkPath = new ZkPath(zkClientWrap)
 
   import ZkUtils._
-
-  @deprecated("This is deprecated, use defaultAcls(path) which doesn't make sensitive data world readable", since = "0.10.2.1")
-  val DefaultAcls: java.util.List[ACL] = ZkUtils.defaultAcls(isSecure, "")
 
   def defaultAcls(path: String): java.util.List[ACL] = ZkUtils.defaultAcls(isSecure, path)
 
