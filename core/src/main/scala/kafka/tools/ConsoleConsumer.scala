@@ -316,8 +316,6 @@ object ConsoleConsumer extends Logging {
       .withRequiredArg
       .describedAs("metrics directory")
       .ofType(classOf[java.lang.String])
-    val newConsumerOpt = parser.accepts("new-consumer", "Use the new consumer implementation. This is the default, so " +
-      "this option is deprecated and will be removed in a future release.")
     val bootstrapServerOpt = parser.accepts("bootstrap-server", "REQUIRED (unless old consumer is used): The server to connect to.")
       .withRequiredArg
       .describedAs("server to connect to")
@@ -388,8 +386,6 @@ object ConsoleConsumer extends Logging {
     if (useOldConsumer) {
       if (options.has(bootstrapServerOpt))
         CommandLineUtils.printUsageAndDie(parser, s"Option $bootstrapServerOpt is not valid with $zkConnectOpt.")
-      else if (options.has(newConsumerOpt))
-        CommandLineUtils.printUsageAndDie(parser, s"Option $newConsumerOpt is not valid with $zkConnectOpt.")
       val topicOrFilterOpt = List(topicIdOpt, whitelistOpt, blacklistOpt).filter(options.has)
       if (topicOrFilterOpt.size != 1)
         CommandLineUtils.printUsageAndDie(parser, "Exactly one of whitelist/blacklist/topic is required.")
@@ -440,11 +436,6 @@ object ConsoleConsumer extends Logging {
 
     if (!useOldConsumer) {
       CommandLineUtils.checkRequiredArgs(parser, options, bootstrapServerOpt)
-
-      if (options.has(newConsumerOpt)) {
-        Console.err.println("The --new-consumer option is deprecated and will be removed in a future major release." +
-          "The new consumer is used by default if the --bootstrap-server option is provided.")
-      }
     }
 
     if (options.has(csvMetricsReporterEnabledOpt)) {

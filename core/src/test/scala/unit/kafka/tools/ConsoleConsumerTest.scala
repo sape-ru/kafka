@@ -101,8 +101,7 @@ class ConsoleConsumerTest {
     val args: Array[String] = Array(
       "--bootstrap-server", "localhost:9092",
       "--topic", "test",
-      "--from-beginning",
-      "--new-consumer") //new
+      "--from-beginning")
 
     //When
     val config = new ConsoleConsumer.ConsumerConfig(args)
@@ -121,8 +120,7 @@ class ConsoleConsumerTest {
       "--bootstrap-server", "localhost:9092",
       "--topic", "test",
       "--partition", "0",
-      "--offset", "3",
-      "--new-consumer") //new
+      "--offset", "3")
 
     //When
     val config = new ConsoleConsumer.ConsumerConfig(args)
@@ -160,7 +158,6 @@ class ConsoleConsumerTest {
       "--topic", "test",
       "--partition", "0",
       "--offset", "LatEst",
-      "--new-consumer", //new
       "--property", "print.value=false")
 
     //When
