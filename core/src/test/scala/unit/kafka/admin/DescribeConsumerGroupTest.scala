@@ -25,16 +25,6 @@ import org.junit.Test
 class DescribeConsumerGroupTest extends ConsumerGroupCommandTest {
 
   @Test
-  @deprecated("This test has been deprecated and will be removed in a future release.", "0.11.0.0")
-  def testDescribeNonExistingGroup() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
-    createOldConsumer()
-    val cgcArgs = Array("--zookeeper", zkConnect, "--describe", "--group", "missing.group")
-    val consumerGroupService = getConsumerGroupService(cgcArgs)
-    TestUtils.waitUntilTrue(() => consumerGroupService.describeGroup()._2.isEmpty, "Expected no rows in describe group results.")
-  }
-
-  @Test
   def testDescribeSimpleConsumerGroup() {
     // Ensure that the offsets of consumers which don't use group management are still displayed
 
@@ -51,59 +41,6 @@ class DescribeConsumerGroupTest extends ConsumerGroupCommandTest {
       println(assignments.get.map(x => (x.topic, x.partition)))
       state.contains("Empty") && assignments.isDefined && assignments.get.count(_.group == group) == 2
     }, "Expected two partition assignment results in describe group state result.")
-  }
-
-  @Test
-  @deprecated("This test has been deprecated and will be removed in a future release.", "0.11.0.0")
-  def testDescribeExistingGroup() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
-    createOldConsumer()
-    val consumerGroupService = getConsumerGroupService(Array("--zookeeper", zkConnect, "--describe", "--group", group))
-    TestUtils.waitUntilTrue(() => {
-      val (_, assignments) = consumerGroupService.describeGroup()
-      assignments.isDefined &&
-      assignments.get.count(_.group == group) == 1 &&
-      assignments.get.filter(_.group == group).head.consumerId.exists(_.trim != ConsumerGroupCommand.MISSING_COLUMN_VALUE)
-    }, "Expected rows and a consumer id column in describe group results.")
-  }
-
-  @Test
-  @deprecated("This test has been deprecated and will be removed in a future release.", "0.11.0.0")
-  def testDescribeExistingGroupWithNoMembers() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
-    createOldConsumer()
-    val consumerGroupService = getConsumerGroupService(Array("--zookeeper", zkConnect, "--describe", "--group", group))
-
-    TestUtils.waitUntilTrue(() => {
-      val (_, assignments) = consumerGroupService.describeGroup()
-      assignments.isDefined &&
-      assignments.get.count(_.group == group) == 1 &&
-      assignments.get.filter(_.group == group).head.consumerId.exists(_.trim != ConsumerGroupCommand.MISSING_COLUMN_VALUE)
-    }, "Expected rows and a consumer id column in describe group results.")
-    stopRandomOldConsumer()
-
-    TestUtils.waitUntilTrue(() => {
-      val (_, assignments) = consumerGroupService.describeGroup()
-      assignments.isDefined &&
-      assignments.get.count(_.group == group) == 1 &&
-      assignments.get.filter(_.group == group).head.consumerId.exists(_.trim == ConsumerGroupCommand.MISSING_COLUMN_VALUE) // the member should be gone
-    }, "Expected no active member in describe group results.")
-  }
-
-  @Test
-  @deprecated("This test has been deprecated and will be removed in a future release.", "0.11.0.0")
-  def testDescribeConsumersWithNoAssignedPartitions() {
-    TestUtils.createOffsetsTopic(zkUtils, servers)
-    createOldConsumer()
-    createOldConsumer()
-    val consumerGroupService = getConsumerGroupService(Array("--zookeeper", zkConnect, "--describe", "--group", group))
-    TestUtils.waitUntilTrue(() => {
-      val (_, assignments) = consumerGroupService.describeGroup()
-      assignments.isDefined &&
-      assignments.get.count(_.group == group) == 2 &&
-      assignments.get.count { x => x.group == group && x.partition.isDefined } == 1 &&
-      assignments.get.count { x => x.group == group && x.partition.isEmpty } == 1
-    }, "Expected rows for consumers with no assigned partitions in describe group results.")
   }
 
   @Test

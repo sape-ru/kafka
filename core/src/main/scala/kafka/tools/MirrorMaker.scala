@@ -118,12 +118,6 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
         .describedAs("Java regex (String)")
         .ofType(classOf[String])
 
-      val blacklistOpt = parser.accepts("blacklist",
-        "Blacklist of topics to mirror. Only old consumer supports blacklist.")
-        .withRequiredArg()
-        .describedAs("Java regex (String)")
-        .ofType(classOf[String])
-
       val offsetCommitIntervalMsOpt = parser.accepts("offset.commit.interval.ms",
         "Offset commit interval in ms.")
         .withRequiredArg()
@@ -180,30 +174,9 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
       val consumerProps = Utils.loadProps(options.valueOf(consumerConfigOpt))
       val useOldConsumer = consumerProps.containsKey(ZKConfig.ZkConnectProp)
 
-      if (useOldConsumer) {
-        if (options.has(useNewConsumerOpt)) {
-          error(s"The consumer configuration parameter `${ZKConfig.ZkConnectProp}` is not valid when using --new.consumer")
-          sys.exit(1)
-        }
-
-        if (consumerProps.containsKey(NewConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)) {
-          error(s"The configuration parameters `${ZKConfig.ZkConnectProp}` (old consumer) and " +
-            s"`${NewConsumerConfig.BOOTSTRAP_SERVERS_CONFIG}` (new consumer) cannot be used together.")
-          sys.exit(1)
-        }
-
-        if (List(whitelistOpt, blacklistOpt).count(options.has) != 1) {
-          error("Exactly one of whitelist or blacklist is required.")
-          sys.exit(1)
-        }
-      } else {
-        if (options.has(blacklistOpt)) {
-          error("blacklist can not be used when using new consumer in mirror maker. Use whitelist instead.")
-          sys.exit(1)
-        }
 
         if (!options.has(whitelistOpt)) {
-          error("whitelist must be specified when using new consumer in mirror maker.")
+          error("whitelist must be specified.")
           sys.exit(1)
         }
 
@@ -213,7 +186,7 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
             "you prefer to make this switch in advance of that release add the following to the corresponding new-consumer " +
             "config: 'partition.assignment.strategy=org.apache.kafka.clients.consumer.RoundRobinAssignor'")
 
-      }
+
 
       abortOnSendFailure = options.valueOf(abortOnSendFailureOpt).toBoolean
       offsetCommitIntervalMs = options.valueOf(offsetCommitIntervalMsOpt).intValue()
@@ -240,27 +213,7 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
       producer = new MirrorMakerProducer(sync, producerProps)
 
       // Create consumers
-      val mirrorMakerConsumers = if (useOldConsumer) {
-        val customRebalanceListener: Option[ConsumerRebalanceListener] = {
-          val customRebalanceListenerClass = options.valueOf(consumerRebalanceListenerOpt)
-          if (customRebalanceListenerClass != null) {
-            val rebalanceListenerArgs = options.valueOf(rebalanceListenerArgsOpt)
-            if (rebalanceListenerArgs != null) {
-              Some(CoreUtils.createObject[ConsumerRebalanceListener](customRebalanceListenerClass, rebalanceListenerArgs))
-            } else {
-              Some(CoreUtils.createObject[ConsumerRebalanceListener](customRebalanceListenerClass))
-            }
-          } else {
-            None
-          }
-        }
-        createOldConsumers(
-          numStreams,
-          consumerProps,
-          customRebalanceListener,
-          Option(options.valueOf(whitelistOpt)),
-          Option(options.valueOf(blacklistOpt)))
-      } else {
+      val mirrorMakerConsumers = {
         val customRebalanceListener: Option[org.apache.kafka.clients.consumer.ConsumerRebalanceListener] = {
           val customRebalanceListenerClass = options.valueOf(consumerRebalanceListenerOpt)
           if (customRebalanceListenerClass != null) {

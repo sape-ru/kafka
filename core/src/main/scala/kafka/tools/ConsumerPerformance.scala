@@ -57,11 +57,10 @@ object ConsumerPerformance {
     val joinGroupTimeInMs = new AtomicLong(0)
 
     if (!config.hideHeader) {
-      printHeader(config.showDetailedStats, config.useOldConsumer)
+      printHeader(config.showDetailedStats, false)
     }
 
     var startMs, endMs = 0L
-    if (!config.useOldConsumer) {
       val consumer = new KafkaConsumer[Array[Byte], Array[Byte]](config.props)
       consumer.subscribe(Collections.singletonList(config.topic))
       startMs = System.currentTimeMillis
@@ -72,29 +71,7 @@ object ConsumerPerformance {
         metrics = consumer.metrics().asScala
       }
       consumer.close()
-    } else {
-      import kafka.consumer.ConsumerConfig
-      val consumerConfig = new ConsumerConfig(config.props)
-      val consumerConnector: ConsumerConnector = Consumer.create(consumerConfig)
-      val topicMessageStreams = consumerConnector.createMessageStreams(Map(config.topic -> config.numThreads))
-      var threadList = List[ConsumerPerfThread]()
-      for (streamList <- topicMessageStreams.values)
-        for (i <- 0 until streamList.length)
-          threadList ::= new ConsumerPerfThread(i, "kafka-zk-consumer-" + i, streamList(i), config, totalMessagesRead, totalBytesRead, consumerTimeout)
 
-      logger.info("Sleeping for 1 second.")
-      Thread.sleep(1000)
-      logger.info("starting threads")
-      startMs = System.currentTimeMillis
-      for (thread <- threadList)
-        thread.start()
-      for (thread <- threadList)
-        thread.join()
-      endMs =
-        if (consumerTimeout.get()) System.currentTimeMillis - consumerConfig.consumerTimeoutMs
-        else System.currentTimeMillis
-      consumerConnector.shutdown()
-    }
     val elapsedSecs = (endMs - startMs) / 1000.0
     val fetchTimeInMs = (endMs - startMs) - joinGroupTimeInMs.get
     if (!config.showDetailedStats) {
@@ -107,14 +84,12 @@ object ConsumerPerformance {
         totalMessagesRead.get,
         totalMessagesRead.get / elapsedSecs
       ))
-      if (!config.useOldConsumer) {
         print(", %d, %d, %.4f, %.4f".format(
           joinGroupTimeInMs.get,
           fetchTimeInMs,
           totalMBRead / (fetchTimeInMs / 1000.0),
           totalMessagesRead.get / (fetchTimeInMs / 1000.0)
         ))
-      }
       println()
     }
 
@@ -255,12 +230,7 @@ object ConsumerPerformance {
   }
 
   class ConsumerPerfConfig(args: Array[String]) extends PerfConfig(args) {
-    val zkConnectOpt = parser.accepts("zookeeper", "REQUIRED (only when using old consumer): The connection string for the zookeeper connection in the form host:port. " +
-      "Multiple URLS can be given to allow fail-over. This option is only used with the old consumer.")
-      .withRequiredArg
-      .describedAs("urls")
-      .ofType(classOf[String])
-    val bootstrapServersOpt = parser.accepts("broker-list", "REQUIRED (unless old consumer is used): A broker list to use for connecting if using the new consumer.")
+    val bootstrapServersOpt = parser.accepts("broker-list", "REQUIRED: A broker list to use for connecting.")
       .withRequiredArg()
       .describedAs("host")
       .ofType(classOf[String])
@@ -299,7 +269,7 @@ object ConsumerPerformance {
       .withRequiredArg
       .describedAs("config file")
       .ofType(classOf[String])
-    val printMetricsOpt = parser.accepts("print-metrics", "Print out the metrics. This only applies to new consumer.")
+    val printMetricsOpt = parser.accepts("print-metrics", "Print out the metrics.")
     val showDetailedStatsOpt = parser.accepts("show-detailed-stats", "If set, stats are reported for each reporting " +
       "interval as configured by reporting-interval")
 
@@ -307,14 +277,12 @@ object ConsumerPerformance {
 
     CommandLineUtils.checkRequiredArgs(parser, options, topicOpt, numMessagesOpt)
 
-    val useOldConsumer = options.has(zkConnectOpt)
     val printMetrics = options.has(printMetricsOpt)
 
     val props = if (options.has(consumerConfigOpt))
       Utils.loadProps(options.valueOf(consumerConfigOpt))
     else
       new Properties
-    if (!useOldConsumer) {
       CommandLineUtils.checkRequiredArgs(parser, options, bootstrapServersOpt)
 
       import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -326,18 +294,6 @@ object ConsumerPerformance {
       props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, classOf[ByteArrayDeserializer])
       props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, classOf[ByteArrayDeserializer])
       props.put(ConsumerConfig.CHECK_CRCS_CONFIG, "false")
-    } else {
-      if (options.has(bootstrapServersOpt))
-        CommandLineUtils.printUsageAndDie(parser, s"Option $bootstrapServersOpt is not valid with $zkConnectOpt.")
-      CommandLineUtils.checkRequiredArgs(parser, options, zkConnectOpt, numMessagesOpt)
-      props.put("group.id", options.valueOf(groupIdOpt))
-      props.put("socket.receive.buffer.bytes", options.valueOf(socketBufferSizeOpt).toString)
-      props.put("fetch.message.max.bytes", options.valueOf(fetchSizeOpt).toString)
-      props.put("auto.offset.reset", if (options.has(resetBeginningOffsetOpt)) "largest" else "smallest")
-      props.put("zookeeper.connect", options.valueOf(zkConnectOpt))
-      props.put("consumer.timeout.ms", "1000")
-      props.put("num.consumer.fetchers", options.valueOf(numFetchersOpt).toString)
-    }
     val numThreads = options.valueOf(numThreadsOpt).intValue
     val topic = options.valueOf(topicOpt)
     val numMessages = options.valueOf(numMessagesOpt).longValue
