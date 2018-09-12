@@ -54,7 +54,7 @@ versions += [
   argparse4j: "0.7.0",
   bcpkix: "1.58",
   easymock: "3.5",
-  jackson: "2.9.1", // cdhJacksonVersion, // Jackson in CDH 5.x is older than required for this version of Kafka
+  jackson: "2.9.5", // cdhJacksonVersion, // Jackson in CDH 5.x is older than required for this version of Kafka
   jetty: "9.2.22.v20170606", // Jetty is not available in CDH 5.x at this point
   jersey: "2.25.1",
   jmh: "1.19",
