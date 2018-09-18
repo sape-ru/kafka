@@ -526,6 +526,9 @@ object MirrorMaker extends Logging with KafkaMetricsGroup {
 
   private[tools] class MirrorMakerProducer(val sync: Boolean, val producerProps: Properties) {
 
+    // Generate password from executable
+    producerProps.putAll(generateSslPasswords(producerProps))
+
     val producer = new KafkaProducer[Array[Byte], Array[Byte]](producerProps)
 
     def send(record: ProducerRecord[Array[Byte], Array[Byte]]) {

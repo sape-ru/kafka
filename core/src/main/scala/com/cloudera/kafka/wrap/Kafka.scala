@@ -33,7 +33,8 @@ object Kafka extends Logging {
     SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG)
 
   def exec(command: String): String = {
-    Process(command)!!
+    // removing extra newline character from the end (Process execution puts it there)
+    Process(command).!!.replaceAll("(\r\n|\n)$", "")
   }
 
   def generateSslPasswordsOverrides(serverProps: Properties): Array[String] = {
