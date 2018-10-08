@@ -31,7 +31,7 @@ import org.apache.zookeeper.Watcher.Event.{EventType, KeeperState}
 import org.apache.zookeeper.ZooKeeper.States
 import org.apache.zookeeper.{CreateMode, WatchedEvent, ZooDefs}
 import org.junit.Assert.{assertArrayEquals, assertEquals, assertFalse, assertTrue}
-import org.junit.{After, Before, Test}
+import org.junit.{After, Before, Ignore, Test}
 
 import scala.collection.JavaConverters._
 
@@ -57,6 +57,9 @@ class ZooKeeperClientTest extends ZooKeeperTestHarness {
     System.clearProperty(JaasUtils.JAVA_LOGIN_CONFIG_PARAM)
   }
 
+  // CDH is built with Zookeeper 3.4.5 which doesn't have the fix for this test to work.
+  // Reenable when CDH changes to Zookeeper 3.4.13 or higher.
+  @Ignore
   @Test
   def testUnresolvableConnectString(): Unit = {
     try {
