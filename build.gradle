@@ -739,6 +739,8 @@ project(':core') {
       exclude group: 'org.datanucleus'
       exclude group: 'org.apache.sentry', module: 'sentry-policy-search'
       exclude group: 'org.apache.sentry', module: 'sentry-core-model-search'
+      exclude group: 'tomcat', module: 'jasper-runtime'
+      exclude group: 'tomcat', module: 'jasper-compiler'
     }
     releaseJars libs.guava
   }
