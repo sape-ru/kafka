@@ -22,7 +22,7 @@ apply from: "$rootDir/gradle/cdh-pom.gradle"
 ext {
   versions = [:]
   libs = [:]
-  
+
   // Enabled by default when commands like `testAll` are invoked
   defaultScalaVersions = [ '2.11' ]
   // Available if -PscalaVersion is used, this is necessary because Scala 2.12 requires Java 8 while Kafka is usually
@@ -76,7 +76,8 @@ versions += [
   zookeeper: cdhZookeeperVersion,
   jfreechart: "1.0.0",
   mavenArtifact: "3.5.0",
-  guava: "20.0"
+  guava: "20.0",
+  jacksonMapperAsl: "1.9.13-cloudera.1"
 ]
 
 libs += [
@@ -124,5 +125,6 @@ libs += [
   zookeeper: "org.apache.zookeeper:zookeeper:$versions.zookeeper",
   jfreechart: "jfreechart:jfreechart:$versions.jfreechart",
   mavenArtifact: "org.apache.maven:maven-artifact:$versions.mavenArtifact",
-  guava: "com.google.guava:guava:$versions.guava"
+  guava: "com.google.guava:guava:$versions.guava",
+  jacksonMapperAsl: "org.codehaus.jackson:jackson-mapper-asl:$versions.jacksonMapperAsl"
 ]
