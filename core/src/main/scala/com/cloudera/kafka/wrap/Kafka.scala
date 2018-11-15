@@ -21,6 +21,7 @@ import java.util.Properties
 
 import kafka.utils.Logging
 import org.apache.kafka.common.config.SslConfigs
+import org.apache.kafka.common.utils.Exit
 
 import scala.collection.JavaConversions._
 import scala.sys.process.Process
@@ -37,8 +38,9 @@ object Kafka extends Logging {
     Process(command).!!.replaceAll("(\r\n|\n)$", "")
   }
 
-  def generateSslPasswordsOverrides(serverProps: Properties): Array[String] = {
+  def generatePasswordsOverrides(serverProps: Properties): Array[String] = {
     val generatedProps: Properties = generateSslPasswords(serverProps)
+    generatedProps.putAll(generateDelegationTokenPassword(serverProps))
     val props = propertiesAsScalaMap(generatedProps)
 
     props.flatMap(k => {
@@ -46,41 +48,64 @@ object Kafka extends Logging {
     }).toArray
   }
 
-  def generateSslPasswords(props: Properties): Properties = {
+  def generateDelegationTokenPassword(props: Properties) : Properties ={
     val generatedProps: Properties = new Properties()
-    SslPasswordParams.foreach(key => {
-      val generatorKey: String = key + ".generator"
-      val value = props.getProperty(generatorKey)
-      if (value != null) {
-        try {
-          props.remove(generatorKey)
-          generatedProps.put(key, exec(value))
-          debug(s"Generated password for $key")
-        } catch {
-          case e: Exception =>
-            error(s"Failed to generate password for $key.\n$e")
-            None
-        }
-      }
-      else
-        None
-    })
+    val masterKeyKey : String = kafka.server.KafkaConfig.DelegationTokenMasterKeyProp
+    val enabledKey : String = "delegation.token.enable"
+    if ("true" == props.getProperty(enabledKey)) {
+      generatePasswordForKey(masterKeyKey, props, generatedProps)
+    }
+    props.remove(generatorKeyFor(masterKeyKey))
+    props.remove(enabledKey)
     generatedProps
   }
 
-  def main(args: Array[String]): Unit = {
-    try {
-      val serverProps = kafka.Kafka.getPropsFromArgs(args)
-      val sslPasswordsOverrides = generateSslPasswordsOverrides(serverProps)
-      val argsWithOverrides: Array[String] = args ++ sslPasswordsOverrides.flatMap(_.split(" "))
+  def generateSslPasswords(props: Properties): Properties = {
+    val generatedProps: Properties = new Properties()
+    SslPasswordParams.foreach(key => generatePasswordForKey(key, props, generatedProps))
+    generatedProps
+  }
 
-      kafka.Kafka.main(argsWithOverrides)
+  def generatePasswordForKey(key: String, props: Properties, generatedProps: Properties) : Unit = {
+    val generatorKey: String = generatorKeyFor(key)
+    val value = props.getProperty(generatorKey)
+    if (value != null) {
+      try {
+        props.remove(generatorKey)
+        generatedProps.put(key, exec(value))
+        debug(s"Generated password for $key")
+      } catch {
+        case e: Exception =>
+          error(s"Failed to generate password for $key.\n$e")
+
+      }
+    }
+
+  }
+
+  def generatorKeyFor(key: String) = {
+    key + ".generator"
+  }
+
+  def main(args: Array[String]): Unit = {
+    val mainMethod : Array[String] => Unit = kafka.Kafka.main
+    val serverProps = kafka.Kafka.getPropsFromArgs(args)
+
+    runMain(args, serverProps, mainMethod)
+  }
+
+  def runMain(args: Array[String], serverProps: Properties, mainMethod: Array[String] => Unit): Any = {
+    try {
+      val passwordsOverrides = generatePasswordsOverrides(serverProps)
+      val argsWithOverrides: Array[String] = args ++ passwordsOverrides.flatMap(_.split(" "))
+
+      mainMethod(argsWithOverrides)
     }
     catch {
       case e: Throwable =>
         fatal("Exiting Kafka due to fatal exception ", e)
-        System.exit(1)
+        Exit.exit(1)
     }
-    System.exit(0)
+    Exit.exit(0)
   }
 }
