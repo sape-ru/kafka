@@ -23,7 +23,6 @@ import kafka.utils.Logging
 import kafka.zk.{KafkaZkClient, TopicPartitionStateZNode}
 import kafka.zk.KafkaZkClient.UpdateLeaderAndIsrResult
 import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.errors.ControllerMovedException
 import org.apache.zookeeper.KeeperException.Code
 
 import scala.collection.mutable
@@ -107,9 +106,6 @@ class ReplicaStateMachine(config: KafkaConfig,
         }
         controllerBrokerRequestBatch.sendRequestsToBrokers(controllerContext.epoch)
       } catch {
-        case e: ControllerMovedException =>
-          error(s"Controller moved to another broker when moving some replicas to $targetState state", e)
-          throw e
         case e: Throwable => error(s"Error while moving some replicas to $targetState state", e)
       }
     }
@@ -303,7 +299,7 @@ class ReplicaStateMachine(config: KafkaConfig,
       leaderAndIsr.newLeaderAndIsr(newLeader, adjustedIsr)
     }
     val UpdateLeaderAndIsrResult(successfulUpdates, updatesToRetry, failedUpdates) = zkClient.updateLeaderAndIsr(
-      adjustedLeaderAndIsrs, controllerContext.epoch, controllerContext.epochZkVersion)
+      adjustedLeaderAndIsrs, controllerContext.epoch)
     val exceptionsForPartitionsWithNoLeaderAndIsrInZk = partitionsWithNoLeaderAndIsrInZk.flatMap { partition =>
       if (!topicDeletionManager.isTopicQueuedUpForDeletion(partition.topic)) {
         val exception = new StateChangeFailedException(s"Failed to change state of replica $replicaId for partition $partition since the leader and isr path in zookeeper is empty")

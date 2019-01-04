@@ -21,27 +21,24 @@ import java.util.Properties
 import com.yammer.metrics.core.MetricName
 import kafka.api.LeaderAndIsr
 import kafka.cluster.Broker
-import kafka.controller.{KafkaController, LeaderIsrAndControllerEpoch}
+import kafka.controller.LeaderIsrAndControllerEpoch
 import kafka.log.LogConfig
 import kafka.metrics.KafkaMetricsGroup
-import kafka.security.auth.SimpleAclAuthorizer.{NoAcls, VersionedAcls}
+import kafka.security.auth.SimpleAclAuthorizer.{VersionedAcls, NoAcls}
 import kafka.security.auth.{Acl, Resource, ResourceType}
 import kafka.server.ConfigType
 import kafka.utils.Logging
 import kafka.zookeeper._
 import org.apache.kafka.common.{KafkaException, TopicPartition}
 import org.apache.kafka.common.resource.PatternType
-import org.apache.kafka.common.errors.ControllerMovedException
 import org.apache.kafka.common.security.token.delegation.{DelegationToken, TokenInformation}
 import org.apache.kafka.common.utils.{Time, Utils}
-import org.apache.zookeeper.KeeperException.{BadVersionException, Code, ConnectionLossException, NodeExistsException}
-import org.apache.zookeeper.OpResult.{ErrorResult, SetDataResult}
+import org.apache.zookeeper.KeeperException.{Code, NodeExistsException}
 import org.apache.zookeeper.data.{ACL, Stat}
 import org.apache.zookeeper.{CreateMode, KeeperException, ZooKeeper}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{Seq, mutable}
-import scala.collection.JavaConverters._
 
 /**
  * Provides higher level Kafka-specific operations on top of the pipelined [[kafka.zookeeper.ZooKeeperClient]].
@@ -89,75 +86,14 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
   }
 
   /**
-   * Registers a given broker in zookeeper as the controller and increments controller epoch.
-   * @return the (updated controller epoch, epoch zkVersion) tuple
+   * Registers a given broker in zookeeper as the controller.
    * @param controllerId the id of the broker that is to be registered as the controller.
-   * @throws ControllerMovedException if fail to create /controller or fail to increment controller epoch.
+   * @param timestamp the timestamp of the controller election.
+   * @throws KeeperException if an error is returned by ZooKeeper.
    */
-  def registerControllerAndIncrementControllerEpoch(controllerId: Int): (Int, Int) = {
-    val timestamp = time.milliseconds()
-
-    // Read /controller_epoch to get the current controller epoch and zkVersion,
-    // create /controller_epoch with initial value if not exists
-    val (curEpoch, curEpochZkVersion) = getControllerEpoch
-      .map(e => (e._1, e._2.getVersion))
-      .getOrElse(maybeCreateControllerEpochZNode())
-
-    // Create /controller and update /controller_epoch atomically
-    val newControllerEpoch = curEpoch + 1
-    val expectedControllerEpochZkVersion = curEpochZkVersion
-
-    debug(s"Try to create ${ControllerZNode.path} and increment controller epoch to $newControllerEpoch with expected controller epoch zkVersion $expectedControllerEpochZkVersion")
-
-    def checkControllerAndEpoch(): (Int, Int) = {
-      val curControllerId = getControllerId.getOrElse(throw new ControllerMovedException(
-        s"The ephemeral node at ${ControllerZNode.path} went away while checking whether the controller election succeeds. " +
-          s"Aborting controller startup procedure"))
-      if (controllerId == curControllerId) {
-        val (epoch, stat)  = getControllerEpoch.getOrElse(
-          throw new IllegalStateException(s"${ControllerEpochZNode.path} existed before but goes away while trying to read it"))
-
-        // If the epoch is the same as newControllerEpoch, it is safe to infer that the returned epoch zkVersion
-        // is associated with the current broker during controller election because we already knew that the zk
-        // transaction succeeds based on the controller znode verification. Other rounds of controller
-        // election will result in larger epoch number written in zk.
-        if (epoch == newControllerEpoch)
-          return (newControllerEpoch, stat.getVersion)
-      }
-      throw new ControllerMovedException("Controller moved to another broker. Aborting controller startup procedure")
-    }
-
-    def tryCreateControllerZNodeAndIncrementEpoch(): (Int, Int) = {
-      try {
-        val transaction = zooKeeperClient.createTransaction()
-        transaction.create(ControllerZNode.path, ControllerZNode.encode(controllerId, timestamp),
-          acls(ControllerZNode.path).asJava, CreateMode.EPHEMERAL)
-        transaction.setData(ControllerEpochZNode.path, ControllerEpochZNode.encode(newControllerEpoch), expectedControllerEpochZkVersion)
-        val results = transaction.commit()
-        val setDataResult = results.get(1).asInstanceOf[SetDataResult]
-        (newControllerEpoch, setDataResult.getStat.getVersion)
-      } catch {
-        case _: NodeExistsException | _: BadVersionException => checkControllerAndEpoch()
-        case _: ConnectionLossException =>
-          zooKeeperClient.waitUntilConnected()
-          tryCreateControllerZNodeAndIncrementEpoch()
-      }
-    }
-
-    tryCreateControllerZNodeAndIncrementEpoch()
-  }
-
-  private def maybeCreateControllerEpochZNode(): (Int, Int) = {
-    createControllerEpochRaw(KafkaController.InitialControllerEpoch).resultCode match {
-      case Code.OK =>
-        info(s"Successfully created ${ControllerEpochZNode.path} with initial epoch ${KafkaController.InitialControllerEpoch}")
-        (KafkaController.InitialControllerEpoch, KafkaController.InitialControllerEpochZkVersion)
-      case Code.NODEEXISTS =>
-        val (epoch, stat) = getControllerEpoch.getOrElse(throw new IllegalStateException(s"${ControllerEpochZNode.path} existed before but goes away while trying to read it"))
-        (epoch, stat.getVersion)
-      case code =>
-        throw KeeperException.create(code)
-    }
+  def registerController(controllerId: Int, timestamp: Long): Unit = {
+    val path = ControllerZNode.path
+    checkedEphemeralCreate(path, ControllerZNode.encode(controllerId, timestamp))
   }
 
   def updateBrokerInfo(brokerInfo: BrokerInfo): Unit = {
@@ -183,15 +119,13 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
   /**
    * Sets topic partition states for the given partitions.
    * @param leaderIsrAndControllerEpochs the partition states of each partition whose state we wish to set.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    * @return sequence of SetDataResponse whose contexts are the partitions they are associated with.
    */
-  def setTopicPartitionStatesRaw(leaderIsrAndControllerEpochs: Map[TopicPartition, LeaderIsrAndControllerEpoch], expectedControllerEpochZkVersion: Int): Seq[SetDataResponse] = {
+  def setTopicPartitionStatesRaw(leaderIsrAndControllerEpochs: Map[TopicPartition, LeaderIsrAndControllerEpoch]): Seq[SetDataResponse] = {
     val setDataRequests = leaderIsrAndControllerEpochs.map { case (partition, leaderIsrAndControllerEpoch) =>
       val path = TopicPartitionStateZNode.path(partition)
       val data = TopicPartitionStateZNode.encode(leaderIsrAndControllerEpoch)
-      SetDataRequest(path, data, leaderIsrAndControllerEpoch.leaderAndIsr.zkVersion, Some(partition),
-        controllerZkVersionCheck(expectedControllerEpochZkVersion))
+      SetDataRequest(path, data, leaderIsrAndControllerEpoch.leaderAndIsr.zkVersion, Some(partition))
     }
     retryRequestsUntilConnected(setDataRequests.toSeq)
   }
@@ -199,16 +133,15 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
   /**
    * Creates topic partition state znodes for the given partitions.
    * @param leaderIsrAndControllerEpochs the partition states of each partition whose state we wish to set.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    * @return sequence of CreateResponse whose contexts are the partitions they are associated with.
    */
-  def createTopicPartitionStatesRaw(leaderIsrAndControllerEpochs: Map[TopicPartition, LeaderIsrAndControllerEpoch], expectedControllerEpochZkVersion: Int): Seq[CreateResponse] = {
-    createTopicPartitions(leaderIsrAndControllerEpochs.keys.map(_.topic).toSet.toSeq, expectedControllerEpochZkVersion)
-    createTopicPartition(leaderIsrAndControllerEpochs.keys.toSeq, expectedControllerEpochZkVersion)
+  def createTopicPartitionStatesRaw(leaderIsrAndControllerEpochs: Map[TopicPartition, LeaderIsrAndControllerEpoch]): Seq[CreateResponse] = {
+    createTopicPartitions(leaderIsrAndControllerEpochs.keys.map(_.topic).toSet.toSeq)
+    createTopicPartition(leaderIsrAndControllerEpochs.keys.toSeq)
     val createRequests = leaderIsrAndControllerEpochs.map { case (partition, leaderIsrAndControllerEpoch) =>
       val path = TopicPartitionStateZNode.path(partition)
       val data = TopicPartitionStateZNode.encode(leaderIsrAndControllerEpoch)
-      CreateRequest(path, data, acls(path), CreateMode.PERSISTENT, Some(partition), controllerZkVersionCheck(expectedControllerEpochZkVersion))
+      CreateRequest(path, data, acls(path), CreateMode.PERSISTENT, Some(partition))
     }
     retryRequestsUntilConnected(createRequests.toSeq)
   }
@@ -239,10 +172,9 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
    * Update the partition states of multiple partitions in zookeeper.
    * @param leaderAndIsrs The partition states to update.
    * @param controllerEpoch The current controller epoch.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    * @return UpdateLeaderAndIsrResult instance containing per partition results.
    */
-  def updateLeaderAndIsr(leaderAndIsrs: Map[TopicPartition, LeaderAndIsr], controllerEpoch: Int, expectedControllerEpochZkVersion: Int): UpdateLeaderAndIsrResult = {
+  def updateLeaderAndIsr(leaderAndIsrs: Map[TopicPartition, LeaderAndIsr], controllerEpoch: Int): UpdateLeaderAndIsrResult = {
     val successfulUpdates = mutable.Map.empty[TopicPartition, LeaderAndIsr]
     val updatesToRetry = mutable.Buffer.empty[TopicPartition]
     val failed = mutable.Map.empty[TopicPartition, Exception]
@@ -250,9 +182,8 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
       partition -> LeaderIsrAndControllerEpoch(leaderAndIsr, controllerEpoch)
     }
     val setDataResponses = try {
-      setTopicPartitionStatesRaw(leaderIsrAndControllerEpochs, expectedControllerEpochZkVersion)
+      setTopicPartitionStatesRaw(leaderIsrAndControllerEpochs)
     } catch {
-      case e: ControllerMovedException => throw e
       case e: Exception =>
         leaderAndIsrs.keys.foreach(partition => failed.put(partition, e))
         return UpdateLeaderAndIsrResult(successfulUpdates.toMap, updatesToRetry, failed.toMap)
@@ -450,12 +381,10 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
    * Sets the topic znode with the given assignment.
    * @param topic the topic whose assignment is being set.
    * @param assignment the partition to replica mapping to set for the given topic
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    * @return SetDataResponse
    */
-  def setTopicAssignmentRaw(topic: String, assignment: collection.Map[TopicPartition, Seq[Int]], expectedControllerEpochZkVersion: Int): SetDataResponse = {
-    val setDataRequest = SetDataRequest(TopicZNode.path(topic), TopicZNode.encode(assignment), ZkVersion.MatchAnyVersion,
-      zkVersionCheck = controllerZkVersionCheck(expectedControllerEpochZkVersion))
+  def setTopicAssignmentRaw(topic: String, assignment: collection.Map[TopicPartition, Seq[Int]]): SetDataResponse = {
+    val setDataRequest = SetDataRequest(TopicZNode.path(topic), TopicZNode.encode(assignment), ZkVersion.MatchAnyVersion)
     retryRequestUntilConnected(setDataRequest)
   }
 
@@ -463,11 +392,10 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
    * Sets the topic znode with the given assignment.
    * @param topic the topic whose assignment is being set.
    * @param assignment the partition to replica mapping to set for the given topic
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    * @throws KeeperException if there is an error while setting assignment
    */
-  def setTopicAssignment(topic: String, assignment: Map[TopicPartition, Seq[Int]], expectedControllerEpochZkVersion: Int = ZkVersion.MatchAnyVersion) = {
-    val setDataResponse = setTopicAssignmentRaw(topic, assignment, expectedControllerEpochZkVersion)
+  def setTopicAssignment(topic: String, assignment: Map[TopicPartition, Seq[Int]]) = {
+    val setDataResponse = setTopicAssignmentRaw(topic, assignment)
     setDataResponse.maybeThrow
   }
 
@@ -515,12 +443,11 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
 
   /**
    * Deletes all log dir event notifications.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    */
-  def deleteLogDirEventNotifications(expectedControllerEpochZkVersion: Int): Unit = {
+  def deleteLogDirEventNotifications(): Unit = {
     val getChildrenResponse = retryRequestUntilConnected(GetChildrenRequest(LogDirEventNotificationZNode.path))
     if (getChildrenResponse.resultCode == Code.OK) {
-      deleteLogDirEventNotifications(getChildrenResponse.children.map(LogDirEventNotificationSequenceZNode.sequenceNumber), expectedControllerEpochZkVersion)
+      deleteLogDirEventNotifications(getChildrenResponse.children.map(LogDirEventNotificationSequenceZNode.sequenceNumber))
     } else if (getChildrenResponse.resultCode != Code.NONODE) {
       getChildrenResponse.maybeThrow
     }
@@ -529,12 +456,10 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
   /**
    * Deletes the log dir event notifications associated with the given sequence numbers.
    * @param sequenceNumbers the sequence numbers associated with the log dir event notifications to be deleted.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    */
-  def deleteLogDirEventNotifications(sequenceNumbers: Seq[String], expectedControllerEpochZkVersion: Int): Unit = {
+  def deleteLogDirEventNotifications(sequenceNumbers: Seq[String]): Unit = {
     val deleteRequests = sequenceNumbers.map { sequenceNumber =>
-      DeleteRequest(LogDirEventNotificationSequenceZNode.path(sequenceNumber), ZkVersion.MatchAnyVersion,
-        zkVersionCheck = controllerZkVersionCheck(expectedControllerEpochZkVersion))
+      DeleteRequest(LogDirEventNotificationSequenceZNode.path(sequenceNumber), ZkVersion.MatchAnyVersion)
     }
     retryRequestsUntilConnected(deleteRequests)
   }
@@ -752,11 +677,9 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
   /**
    * Remove the given topics from the topics marked for deletion.
    * @param topics the topics to remove.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    */
-  def deleteTopicDeletions(topics: Seq[String], expectedControllerEpochZkVersion: Int): Unit = {
-    val deleteRequests = topics.map(topic => DeleteRequest(DeleteTopicsTopicZNode.path(topic), ZkVersion.MatchAnyVersion,
-      zkVersionCheck = controllerZkVersionCheck(expectedControllerEpochZkVersion)))
+  def deleteTopicDeletions(topics: Seq[String]): Unit = {
+    val deleteRequests = topics.map(topic => DeleteRequest(DeleteTopicsTopicZNode.path(topic), ZkVersion.MatchAnyVersion))
     retryRequestsUntilConnected(deleteRequests)
   }
 
@@ -785,20 +708,18 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
    * exists or not.
    *
    * @param reassignment the reassignment to set on the reassignment znode
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    * @throws KeeperException if there is an error while setting or creating the znode
    */
-  def setOrCreatePartitionReassignment(reassignment: collection.Map[TopicPartition, Seq[Int]], expectedControllerEpochZkVersion: Int): Unit = {
+  def setOrCreatePartitionReassignment(reassignment: collection.Map[TopicPartition, Seq[Int]]): Unit = {
 
     def set(reassignmentData: Array[Byte]): SetDataResponse = {
-      val setDataRequest = SetDataRequest(ReassignPartitionsZNode.path, reassignmentData, ZkVersion.MatchAnyVersion,
-        zkVersionCheck = controllerZkVersionCheck(expectedControllerEpochZkVersion))
+      val setDataRequest = SetDataRequest(ReassignPartitionsZNode.path, reassignmentData, ZkVersion.MatchAnyVersion)
       retryRequestUntilConnected(setDataRequest)
     }
 
     def create(reassignmentData: Array[Byte]): CreateResponse = {
       val createRequest = CreateRequest(ReassignPartitionsZNode.path, reassignmentData, acls(ReassignPartitionsZNode.path),
-        CreateMode.PERSISTENT, zkVersionCheck = controllerZkVersionCheck(expectedControllerEpochZkVersion))
+        CreateMode.PERSISTENT)
       retryRequestUntilConnected(createRequest)
     }
 
@@ -823,11 +744,9 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
 
   /**
    * Deletes the partition reassignment znode.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    */
-  def deletePartitionReassignment(expectedControllerEpochZkVersion: Int): Unit = {
-    val deleteRequest = DeleteRequest(ReassignPartitionsZNode.path, ZkVersion.MatchAnyVersion,
-      zkVersionCheck = controllerZkVersionCheck(expectedControllerEpochZkVersion))
+  def deletePartitionReassignment(): Unit = {
+    val deleteRequest = DeleteRequest(ReassignPartitionsZNode.path, ZkVersion.MatchAnyVersion)
     retryRequestUntilConnected(deleteRequest)
   }
 
@@ -932,12 +851,11 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
 
   /**
    * Deletes all isr change notifications.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    */
-  def deleteIsrChangeNotifications(expectedControllerEpochZkVersion: Int): Unit = {
+  def deleteIsrChangeNotifications(): Unit = {
     val getChildrenResponse = retryRequestUntilConnected(GetChildrenRequest(IsrChangeNotificationZNode.path))
     if (getChildrenResponse.resultCode == Code.OK) {
-      deleteIsrChangeNotifications(getChildrenResponse.children.map(IsrChangeNotificationSequenceZNode.sequenceNumber), expectedControllerEpochZkVersion)
+      deleteIsrChangeNotifications(getChildrenResponse.children.map(IsrChangeNotificationSequenceZNode.sequenceNumber))
     } else if (getChildrenResponse.resultCode != Code.NONODE) {
       getChildrenResponse.maybeThrow
     }
@@ -946,12 +864,10 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
   /**
    * Deletes the isr change notifications associated with the given sequence numbers.
    * @param sequenceNumbers the sequence numbers associated with the isr change notifications to be deleted.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    */
-  def deleteIsrChangeNotifications(sequenceNumbers: Seq[String], expectedControllerEpochZkVersion: Int): Unit = {
+  def deleteIsrChangeNotifications(sequenceNumbers: Seq[String]): Unit = {
     val deleteRequests = sequenceNumbers.map { sequenceNumber =>
-      DeleteRequest(IsrChangeNotificationSequenceZNode.path(sequenceNumber), ZkVersion.MatchAnyVersion,
-        zkVersionCheck = controllerZkVersionCheck(expectedControllerEpochZkVersion))
+      DeleteRequest(IsrChangeNotificationSequenceZNode.path(sequenceNumber), ZkVersion.MatchAnyVersion)
     }
     retryRequestsUntilConnected(deleteRequests)
   }
@@ -981,11 +897,9 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
 
   /**
    * Deletes the preferred replica election znode.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    */
-  def deletePreferredReplicaElection(expectedControllerEpochZkVersion: Int): Unit = {
-    val deleteRequest = DeleteRequest(PreferredReplicaElectionZNode.path, ZkVersion.MatchAnyVersion,
-      zkVersionCheck = controllerZkVersionCheck(expectedControllerEpochZkVersion))
+  def deletePreferredReplicaElection(): Unit = {
+    val deleteRequest = DeleteRequest(PreferredReplicaElectionZNode.path, ZkVersion.MatchAnyVersion)
     retryRequestUntilConnected(deleteRequest)
   }
 
@@ -1005,11 +919,9 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
 
   /**
    * Deletes the controller znode.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    */
-  def deleteController(expectedControllerEpochZkVersion: Int): Unit = {
-    val deleteRequest = DeleteRequest(ControllerZNode.path, ZkVersion.MatchAnyVersion,
-      zkVersionCheck = controllerZkVersionCheck(expectedControllerEpochZkVersion))
+  def deleteController(): Unit = {
+    val deleteRequest = DeleteRequest(ControllerZNode.path, ZkVersion.MatchAnyVersion)
     retryRequestUntilConnected(deleteRequest)
   }
 
@@ -1032,20 +944,17 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
   /**
    * Recursively deletes the topic znode.
    * @param topic the topic whose topic znode we wish to delete.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    */
-  def deleteTopicZNode(topic: String, expectedControllerEpochZkVersion: Int): Unit = {
-    deleteRecursive(TopicZNode.path(topic), expectedControllerEpochZkVersion)
+  def deleteTopicZNode(topic: String): Unit = {
+    deleteRecursive(TopicZNode.path(topic))
   }
 
   /**
    * Deletes the topic configs for the given topics.
    * @param topics the topics whose configs we wish to delete.
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    */
-  def deleteTopicConfigs(topics: Seq[String], expectedControllerEpochZkVersion: Int): Unit = {
-    val deleteRequests = topics.map(topic => DeleteRequest(ConfigEntityZNode.path(ConfigType.Topic, topic),
-      ZkVersion.MatchAnyVersion, zkVersionCheck = controllerZkVersionCheck(expectedControllerEpochZkVersion)))
+  def deleteTopicConfigs(topics: Seq[String]): Unit = {
+    val deleteRequests = topics.map(topic => DeleteRequest(ConfigEntityZNode.path(ConfigType.Topic, topic), ZkVersion.MatchAnyVersion))
     retryRequestsUntilConnected(deleteRequests)
   }
 
@@ -1494,19 +1403,18 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
   /**
    * Deletes the given zk path recursively
    * @param path
-   * @param expectedControllerEpochZkVersion expected controller epoch zkVersion.
    * @return true if path gets deleted successfully, false if root path doesn't exist
    * @throws KeeperException if there is an error while deleting the znodes
    */
-  def deleteRecursive(path: String, expectedControllerEpochZkVersion: Int = ZkVersion.MatchAnyVersion): Boolean = {
+  def deleteRecursive(path: String): Boolean = {
     val getChildrenResponse = retryRequestUntilConnected(GetChildrenRequest(path))
     getChildrenResponse.resultCode match {
       case Code.OK =>
-        getChildrenResponse.children.foreach(child => deleteRecursive(s"$path/$child", expectedControllerEpochZkVersion))
-        val deleteResponse = retryRequestUntilConnected(DeleteRequest(path, ZkVersion.MatchAnyVersion,
-          zkVersionCheck = controllerZkVersionCheck(expectedControllerEpochZkVersion)))
-        if (deleteResponse.resultCode != Code.OK && deleteResponse.resultCode != Code.NONODE)
+        getChildrenResponse.children.foreach(child => deleteRecursive(s"$path/$child"))
+        val deleteResponse = retryRequestUntilConnected(DeleteRequest(path, ZkVersion.MatchAnyVersion))
+        if (deleteResponse.resultCode != Code.OK && deleteResponse.resultCode != Code.NONODE) {
           throw deleteResponse.resultException.get
+        }
         true
       case Code.NONODE => false
       case _ => throw getChildrenResponse.resultException.get
@@ -1560,18 +1468,18 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
 
   }
 
-  private def createTopicPartition(partitions: Seq[TopicPartition], expectedControllerEpochZkVersion: Int): Seq[CreateResponse] = {
+  private def createTopicPartition(partitions: Seq[TopicPartition]): Seq[CreateResponse] = {
     val createRequests = partitions.map { partition =>
       val path = TopicPartitionZNode.path(partition)
-      CreateRequest(path, null, acls(path), CreateMode.PERSISTENT, Some(partition), controllerZkVersionCheck(expectedControllerEpochZkVersion))
+      CreateRequest(path, null, acls(path), CreateMode.PERSISTENT, Some(partition))
     }
     retryRequestsUntilConnected(createRequests)
   }
 
-  private def createTopicPartitions(topics: Seq[String], expectedControllerEpochZkVersion: Int):Seq[CreateResponse] = {
+  private def createTopicPartitions(topics: Seq[String]): Seq[CreateResponse] = {
     val createRequests = topics.map { topic =>
       val path = TopicPartitionsZNode.path(topic)
-      CreateRequest(path, null, acls(path), CreateMode.PERSISTENT, Some(topic), controllerZkVersionCheck(expectedControllerEpochZkVersion))
+      CreateRequest(path, null, acls(path), CreateMode.PERSISTENT, Some(topic))
     }
     retryRequestsUntilConnected(createRequests)
   }
@@ -1605,16 +1513,13 @@ class KafkaZkClient private (zooKeeperClient: ZooKeeperClient, isSecure: Boolean
         requestResponsePairs.foreach { case (request, response) =>
           if (response.resultCode == Code.CONNECTIONLOSS)
             remainingRequests += request
-          else {
-            maybeThrowControllerMoveException(response)
+          else
             responses += response
-          }
         }
 
         if (remainingRequests.nonEmpty)
           zooKeeperClient.waitUntilConnected()
       } else {
-        batchResponses.foreach(maybeThrowControllerMoveException)
         remainingRequests.clear()
         responses ++= batchResponses
       }
@@ -1693,32 +1598,5 @@ object KafkaZkClient {
     val zooKeeperClient = new ZooKeeperClient(connectString, sessionTimeoutMs, connectionTimeoutMs, maxInFlightRequests,
       time, metricGroup, metricType)
     new KafkaZkClient(zooKeeperClient, isSecure, time)
-  }
-
-
-  private def controllerZkVersionCheck(version: Int): Option[ZkVersionCheck] = {
-    if (version < KafkaController.InitialControllerEpochZkVersion)
-      None
-    else
-      Some(ZkVersionCheck(ControllerEpochZNode.path, version))
-  }
-
-  private def maybeThrowControllerMoveException(response: AsyncResponse): Unit = {
-    response.zkVersionCheckResult match {
-      case Some(zkVersionCheckResult) =>
-        val zkVersionCheck = zkVersionCheckResult.zkVersionCheck
-        if (zkVersionCheck.checkPath.equals(ControllerEpochZNode.path))
-          zkVersionCheckResult.opResult match {
-            case errorResult: ErrorResult =>
-              val errorCode = Code.get(errorResult.getErr)
-              if (errorCode == Code.BADVERSION)
-              // Throw ControllerMovedException when the zkVersionCheck is performed on the controller epoch znode and the check fails
-                throw new ControllerMovedException(s"Controller epoch zkVersion check fails. Expected zkVersion = ${zkVersionCheck.expectedZkVersion}")
-              else if (errorCode != Code.OK)
-                throw KeeperException.create(errorCode, zkVersionCheck.checkPath)
-            case _ =>
-          }
-      case None =>
-    }
   }
 }
