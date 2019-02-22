@@ -28,7 +28,7 @@ import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.kafka.common.errors.KafkaStorageException
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.apache.kafka.common.serialization.{IntegerDeserializer, IntegerSerializer, StringDeserializer, StringSerializer}
-import org.junit.{Before, Test}
+import org.junit.{Before, Ignore, Test}
 import org.junit.Assert._
 
 import scala.collection.JavaConverters._
@@ -125,6 +125,9 @@ class ServerShutdownTest extends ZooKeeperTestHarness {
     verifyNonDaemonThreadsStatus
   }
 
+  // CDH is built with Zookeeper 3.4.5 which doesn't have the fix for this test to work.
+  // Reenable when CDH changes to Zookeeper 3.4.13 or higher.
+  @Ignore
   @Test
   def testCleanShutdownAfterFailedStartup() {
     val newProps = TestUtils.createBrokerConfig(0, zkConnect)
