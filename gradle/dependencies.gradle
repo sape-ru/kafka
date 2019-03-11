@@ -56,7 +56,7 @@ versions += [
   bcpkix: "1.60",
   caffeine: "2.6.1",
   easymock: "3.6",
-  jackson: cdhJackson2Version,
+  jackson: "2.9.8",
   jetty: cdhJetty9Version,
   jersey: "2.27",
   jmh: cdhJmhVersion,
